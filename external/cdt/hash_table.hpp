@@ -9,7 +9,7 @@
 #include <cassert>
 #include <fstream>
 #include <utility>
-#include "../../third-party/xxHash-dev/xxhash.h"
+#include "../xxHash-dev/xxhash.h"
 #include "bitstream.h"
 #include "prime_generator.hpp"
 
@@ -444,6 +444,7 @@ public:
             static_buffer = false;
             dynamic_init(buffer_size);
         }else{
+            assert(buffer_size>=64);//must be at least 32 bytes
             static_buffer = true;
             static_init(buffer_size, buff_addr);
         }
@@ -719,7 +720,7 @@ public:
         m_load_factor = 0;
 
         // a buffer size of (1<<64)-1 bytes indicates
-        // that there is not limit for the size
+        // that there is no limit for the size
         // of the buffer
         if(max_buffer_bytes!=std::numeric_limits<buffer_t>::max() && !static_buffer){
             //half of the buffer for the hash table
