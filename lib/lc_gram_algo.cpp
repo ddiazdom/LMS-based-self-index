@@ -152,7 +152,7 @@ void join_thread_phrases(phrase_map_t& map, std::vector<std::string> &files) {
 
             auto res = map.insert(key, key_bits, rep);
             if(!res.second){
-                map.insert_value_at(*res.first, 1UL);
+                map.insert_value_at(res.first, 1UL);
             }
         }
         text_i.close();
@@ -201,7 +201,7 @@ template<template<class, class> class lc_parser_t>
 void build_lc_gram(std::string &i_file, size_t n_threads, size_t hbuff_size,
                       gram_info_t &p_gram, alpha_t alphabet, sdsl::cache_config &config){
 
-    std::cout<<"  Generating the locally consistent grammar:    "<<std::endl;
+    std::cout<<"  Generating a locally consistent grammar:    "<<std::endl;
     std::string output_file = sdsl::cache_file_name("tmp_output", config);
     std::string tmp_i_file = sdsl::cache_file_name("tmp_input", config);
 
