@@ -24,26 +24,33 @@ template<class grammar_t>
 void gram2bwt(grammar_t& gram){
 
     gramm_extra_feat gram_ef(gram);
-
     sdsl::int_vector<> buckets(gram.symbols()+1, 0, sdsl::bits::hi(gram.gram_size())+1);
+    using g_iterator = typename grammar_t::iterator;
 
     //count the frequency of every symbol
     {
-        size_t curr_pos = gram.ter(), last_pos = gram_ef.rb(curr_pos);
+        size_t curr_pos = gram.ter(), last_pos = gram_ef.rb(curr_pos), sym;
         std::pair<size_t, size_t> rl_zone = gram.rl_zone();
         size_t limit = rl_zone.first, c_start = gram.nter_ptr[gram.symbols()-1];
         while(true){
             while (curr_pos < limit) {
-                if (curr_pos == gram_ef.rb(curr_pos) ) {
+                if (curr_pos == last_pos) {
                     last_pos = gram_ef.rb(last_pos + 1);
-                } else if(!gram.is_sp(gram.rules[curr_pos])){
-                    buckets[gram.rules[curr_pos]]++;
+                } else {
+                    sym = gram.rules[curr_pos];
+                    if(!gram.is_sp(sym)){
+                        if(gram.is_rl(sym)) sym =  gram.rules[gram.nter_ptr[sym]];
+                        buckets[sym]++;
+                    }
                 }
                 curr_pos++;
             }
+
             if(curr_pos==c_start){
                 while(curr_pos<gram.gram_size()){
-                    buckets[gram.rules[curr_pos]]++;
+                    sym = gram.rules[curr_pos];
+                    if(gram.is_rl(sym)) sym =  gram.rules[gram.nter_ptr[sym]];
+                    buckets[sym]++;
                     curr_pos++;
                 }
                 break;
@@ -67,21 +74,29 @@ void gram2bwt(grammar_t& gram){
 
     //put the symbols symbol occurrences in their positions
     {
-        size_t curr_pos = gram.ter(), last_pos = gram_ef.rb(curr_pos);
+        size_t curr_pos = gram.ter(), last_pos = gram_ef.rb(curr_pos), sym;
         std::pair<size_t, size_t> rl_zone = gram.rl_zone();
         size_t limit = rl_zone.first, c_start = gram.nter_ptr[gram.symbols()-1];
         while(true){
+
             while (curr_pos < limit) {
-                if (curr_pos == gram_ef.rb(curr_pos)) {
+                if (curr_pos == last_pos) {
                     last_pos = gram_ef.rb(last_pos + 1);
-                } else if(!gram.is_sp(gram.rules[curr_pos])) {
-                    gram_sa[buckets[gram.rules[curr_pos]]++] = curr_pos;
+                } else {
+                    sym = gram.rules[curr_pos];
+                    if(!gram.is_sp(sym)){
+                        if(gram.is_rl(sym)) sym =  gram.rules[gram.nter_ptr[sym]];
+                        gram_sa[buckets[sym]++] = curr_pos;
+                    }
                 }
                 curr_pos++;
             }
+
             if(curr_pos==c_start){
                 while(curr_pos<gram.gram_size()){
-                    gram_sa[buckets[gram.rules[curr_pos]]++] = curr_pos;
+                    sym = gram.rules[curr_pos];
+                    if(gram.is_rl(sym)) sym =  gram.rules[gram.nter_ptr[sym]];
+                    gram_sa[buckets[sym]++] = curr_pos;
                     curr_pos++;
                 }
                 break;
@@ -93,7 +108,7 @@ void gram2bwt(grammar_t& gram){
     }
 
     //TODO testing
-    for(size_t i=0;i<gram.symbols()-1;i++){
+    /*for(size_t i=0;i<gram.symbols()-1;i++){
         size_t start = gram.nter_ptr[i];
         size_t end = gram.nter_ptr[i+1]-1;
         for(size_t j=start;j<=end;j++){
@@ -107,97 +122,63 @@ void gram2bwt(grammar_t& gram){
         for(size_t j=start;j<=end;j++){
             assert(gram_ef.rb(j)==end);
         }
-    }
+    }*/
     //
 
+    size_t k = 0;
     for(auto const& pos : gram_sa){
         assert(!gram.in_rl_zone(pos));
         if(pos>gram.nter_ptr[gram.symbols()-1]){
-            std::cout<<pos<<":"<<gram_ef.rb(pos)<<" -> ";
+            std::cout<<k<<"   "<<pos<<":"<<gram_ef.rb(pos)<<" -> ";
             for(size_t j=pos;j<=gram_ef.rb(pos);j++){
                 std::cout<<gram.rules[j]<<","<<gram.parsing_level(gram.rules[j])<<","<<gram.is_sp(gram.rules[j])<<" ";
             }
             std::cout<<" "<<std::endl;
             print_suffix(pos, gram_ef.rb(pos), gram);
         }
+        k++;
     }
 
-    auto descend = [&](size_t& sym, size_t& freq, std::stack<size_t>& stack){
-        if(sym<gram.ter()){
-            sym = stack.top();
-            stack.pop();
-            freq = 1;
-        } else{
-            size_t start = gram.nter_ptr[sym];
-            if(gram.is_rl(sym)){
-                freq = gram.rules[start + 1];
-            } else{
-                freq = 1;
-                size_t end = gram.nter_ptr[sym+1]-1;
-                for(size_t i=end; i>start;i--){
-                    stack.push(gram.rules[i]);
-                }
-            }
-            sym = gram.rules[start];
-        }
-    };
-
-    auto comp_positions = [&](size_t idx_a, size_t idx_b) -> bool {
-
-        size_t sym_a, sym_b, bound_a=gram_ef.rb(idx_a), bound_b=gram_ef.rb(idx_b);
+    auto end_it = gram.end();
+    auto comp_positions = [&](g_iterator a, g_iterator b) -> bool {
 
         //move to the right as long as they have the same sequence
-        while(idx_a<=bound_a && idx_b<=bound_b &&
-              gram.rules[idx_a] == gram.rules[idx_b]){
-            idx_a++;
-            idx_b++;
+        while(a!=end_it && b!= end_it && a==b){
+            a.skip_subtree();
+            b.skip_subtree();
+            ++a;
+            ++b;
         }
 
-        if(idx_a==bound_a || idx_b==bound_b){//one is a proper prefix of the other
-            return (bound_a-idx_a+1)<(bound_b-idx_b+1);
+        if(a==end_it || b==end_it){//one is a proper prefix of the other
+            return a==end_it && b!=end_it;
         }else{
-            size_t freq_a, freq_b, lvl_a, lvl_b;
-
-            std::stack<size_t> stack_a;
-            std::stack<size_t> stack_b;
-
-            sym_a = gram.rules[idx_a];
-            sym_b = gram.rules[idx_b];
-
-            do{
-                while(!gram.is_lc(sym_a)){
-                    descend(sym_a, freq_a, stack_a);
-                }
-
-                while(!gram.is_lc(sym_b)){
-                    descend(sym_b, freq_b, stack_b);
-                }
-
-                lvl_a = gram.parsing_level(sym_a);
-                lvl_b = gram.parsing_level(sym_b);
-
+            while(a!=end_it && b!=end_it){
+                while(!gram.is_lc(*a)) ++a;
+                while(!gram.is_lc(*b)) ++b;
+                size_t lvl_a = gram.parsing_level(*a);
+                size_t lvl_b = gram.parsing_level(*b);
                 while(lvl_b!=lvl_a){
                     if(lvl_b<lvl_a){
-                        descend(sym_a, freq_a, stack_a);
-                        lvl_a = gram.parsing_level(sym_a);
+                        ++a;
+                        lvl_a = gram.parsing_level(*a);
                     }else {
-                        descend(sym_b, freq_b, stack_b);
-                        lvl_b = gram.parsing_level(sym_b);
+                        ++b;
+                        lvl_b = gram.parsing_level(*b);
                     }
                 }
-
-                if(sym_a!=sym_b){
-                    return sym_a<sym_b;
-                }else{
-                    sym_a = stack_a.top();
-                    sym_b = stack_b.top();
-                }
-            }while(stack_a.empty() && stack_b.empty());
-            return stack_a.empty() && !stack_b.empty();
+                if(*a!=*b) return *a<*b;
+                ++a;
+                ++b;
+            }
+            return a==end_it && b!=end_it;
         }
     };
 
-    //comp_positions(10, 2);
+    auto a = gram.range(80412, 80419);
+    auto b = gram.range(80540, 80543);
+
+    comp_positions(a, b);
 }
 
 template void gram2bwt<grammar<sdsl::int_vector<>>>(grammar<sdsl::int_vector<>>& gram);
