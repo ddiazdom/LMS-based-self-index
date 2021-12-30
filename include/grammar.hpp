@@ -55,6 +55,8 @@ struct gram_info_t{
     std::string                        rules_lim_file; // bit vector marking the last symbol of every right-hand
     std::vector<size_t>                rules_breaks; // number of m_rules generated in every LMS parsing round
     size_t                             n_p_rounds{}; // number of parsing rounds
+    std::pair<size_t, size_t>          rl_rules={0,0};
+    std::pair<size_t, size_t>          sp_rules={0,0};
 
     gram_info_t() = default;
     gram_info_t(std::string& r_file_,
@@ -66,6 +68,11 @@ struct gram_info_t{
 
     [[nodiscard]] bool is_terminal(const size_t& id) const {
         return sym_map.find(id) != sym_map.end();
+    }
+
+    [[nodiscard]] inline bool is_rl(size_t symbol) const{
+        if(rl_rules.second==0) return false;
+        return symbol>=rl_rules.first && symbol < rl_rules.first + rl_rules.second;
     }
 };
 
@@ -186,7 +193,7 @@ public:
         }
 
         if (sym == dummy || other.sym == dummy) {//one is a proper prefix of the other
-            return sym == dummy && other.sym != dummy;
+            return !(sym == dummy && other.sym != dummy);
         } else {
             long long int lvl_a, lvl_b;
             while (sym != dummy && other.sym != dummy) {
