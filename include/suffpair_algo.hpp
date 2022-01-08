@@ -80,7 +80,7 @@
 //        finished = false;
 //    }
 //};
-//void create_new_rules(phrase_map_t& ht, pairing_data& p_data);
+//void compress_dictionary(phrase_map_t& ht, pairing_data& p_data);
 //void update_grammar(pairing_data& p_data, gram_info_t& gram);
 //void prepare_input(gram_info_t& gram_info, bv_t& rep_syms, sdsl::cache_config& config);
 //void collect_pairs(thread_data* d, i_file_stream<size_t>& p_list, o_file_stream<size_t>& r);
@@ -88,7 +88,6 @@
 //void * suffpair_thread(void * data);
 //void merge_ht_data(std::vector<thread_data>& t_data);
 //void suffixpair_int(pairing_data& p_data)
-void remove_uniq_nt(bv_t &rep_sym, vector_t &rules, bv_t &r_lim, gram_info_t &p_gram);
 size_t
 create_new_rules(phrase_map_t &ht, gram_info_t &p_gram, bv_t &rep_sym, sdsl::cache_config &config, vector_t &rules,
                  bv_t &r_lim);

@@ -8,6 +8,7 @@
 #include "grammar.hpp"
 #include "common.h"
 #include "lc_parsers.hpp"
+#include "LMS_induction.h"
 
 template<class istream_t,
          class out_sym_t=size_t,
@@ -29,10 +30,37 @@ struct parse_data_t {
                                                          m_map(m_map_),
                                                          start(start_),
                                                          end(end_),
-                                                         thread_dict(hb_size, o_file_ + "_phrases", 0.8, hb_addr) {
+                                                         thread_dict(hb_size, o_file_ + "_phrases", 0.7, hb_addr) {
         //TODO for the moment the input string has to have a sep_symbol appended at the end
         //TODO assertion : sep_symbols cannot be consecutive
     };
+};
+
+struct dictionary{
+    size_t min_sym;
+    size_t max_sym;
+    size_t alphabet;
+    size_t n_phrases;
+    vector_t dict;
+    bv_t d_lim;
+
+    dictionary(phrase_map_t &mp_map, size_t _min_sym, size_t _max_sym,
+               key_wrapper &key_w, size_t dict_syms): min_sym(_min_sym),
+                                                      max_sym(_max_sym),
+                                                      alphabet(max_sym-min_sym+1),
+                                                      n_phrases(mp_map.size()),
+                                                      dict(dict_syms, 0, sdsl::bits::hi(alphabet)+1),
+                                                      d_lim(dict_syms, false){
+        size_t j=0;
+        for (auto const &ptr : mp_map) {
+            for(size_t i=key_w.size(ptr);i-->0;){
+                dict[j] = key_w.read(ptr, i)-min_sym;
+                d_lim[j++] = false;
+            }
+            d_lim[j-1] = true;
+        }
+        assert(j==dict_syms);
+    }
 };
 
 template<typename parse_data_t,
@@ -86,10 +114,10 @@ size_t build_lc_gram_int(std::string &i_file, std::string &o_file, size_t n_thre
                          sdsl::int_vector<2> &phrase_desc, sdsl::cache_config &config);
 void join_parse_chunks(const std::string &output_file,
                        std::vector<std::string> &chunk_files);
-void join_thread_phrases(phrase_map_t& mp_map, std::vector<std::string> &chunk_files);
+size_t join_thread_phrases(phrase_map_t& map, std::vector<std::string> &files);
 
-void assign_ids(phrase_map_t &mp_map, size_t max_sym, key_wrapper &key_w, ivb_t &r,
-                bvb_t &r_lim, size_t n_threads, sdsl::cache_config &config);
+void assign_ids(phrase_map_t &mp_map, ivb_t &r, bvb_t &r_lim, dictionary &dict, gram_info_t &p_gram,
+                sdsl::cache_config &config);
 
 
 #endif //LG_COMPRESSOR_LMS_ALGO_H
