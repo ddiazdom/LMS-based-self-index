@@ -90,7 +90,6 @@ struct hash_functor{
     void operator()(parse_data_t& data, parser_t& parser){
         auto task = [&](string_t& phrase, bool is_full_str){
             phrase.mask_tail();
-
             if(!is_full_str){
                 data.thread_dict.insert(phrase.data(), phrase.n_bits(), false);
             }
@@ -123,9 +122,6 @@ struct parse_functor{
         pthread_exit(nullptr);
     };
 };
-
-template<class parser_t> std::vector<std::pair<size_t, size_t>>
-compute_thread_ranges(size_t n_threads, std::string& i_file, parser_t& phrase_desct);
 
 template<template<class, class> class lc_parser_t>
 void build_lc_gram(std::string &i_file, size_t n_threads, size_t hbuff_size,

@@ -48,7 +48,6 @@ struct lms_parsing{
             type = sym==prev_sym? prev_type : sym < prev_sym;
 
             if(is_suffix(sym) || (type==L_TYPE && prev_type==S_TYPE)){
-                //std::cout<<(idx+1)<<" -> "<<ifs.read(idx)<<" ("<<is_suffix(ifs.read(idx))<<") "<<ifs.read(idx+1)<<"* "<<ifs.read(idx+2)<<std::endl;
                 return idx+1;
             }
             prev_sym = sym;
@@ -59,7 +58,6 @@ struct lms_parsing{
     void operator()(stream_t& ifs,
                     size_t start, size_t end,
                     std::function<void(string_t&, bool)> task) const {
-
 
         bool s_type, prev_s_type = S_TYPE;
         sym_type curr_sym, prev_sym;
@@ -78,16 +76,6 @@ struct lms_parsing{
             if (is_suffix(curr_sym)) {
                 bool full_str = curr_lms.size()==1 && is_suffix(curr_lms[0]);
                 if (!curr_lms.empty()) {
-                    //TODO testing
-                    /*if(!first){
-                        std::cout<<"first -> ";
-                        for(size_t j=curr_lms.size();j-->0;){
-                            std::cout<<curr_lms[j]<<" ";
-                        }
-                        std::cout<<" "<<i<<" "<<end<<std::endl;
-                        first = true;
-                    }*/
-                    //
                     task(curr_lms, full_str);
                 }
                 curr_lms.clear();
@@ -102,17 +90,6 @@ struct lms_parsing{
 
                     if (prev_s_type == S_TYPE) {//Left-most S suffix
                         if (curr_lms.size()>1) {
-                            //TODO testing
-                            /*if(!first){
-                                std::cout<<"ffirst -> ";
-                                for(size_t j=curr_lms.size();j-->0;){
-                                    std::cout<<curr_lms[j]<<" ";
-                                }
-                                std::cout<<" "<<std::endl;
-                                first = true;
-                            }*/
-                            //
-                            //std::cout<<i<<std::endl;
                             task(curr_lms, false);
                         }
                         curr_lms.clear();
@@ -129,12 +106,6 @@ struct lms_parsing{
                         is_suffix(curr_lms[0]) &&
                         (start == 0 || is_suffix(ifs.read(start - 1)));
         if(!curr_lms.empty()){
-            //TODO testing
-            /*for(size_t j=curr_lms.size();j-->0;){
-                std::cout<<curr_lms[j]<<" ";
-            }
-            std::cout<<" "<<std::endl;*/
-            //
             task(curr_lms, full_str);
         }
     }

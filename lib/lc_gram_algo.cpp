@@ -30,10 +30,10 @@ void compress_dictionary(dictionary &dict, vector_t &sa, gram_info_t &p_gram,
 
     size_t width = sdsl::bits::hi(dict.alphabet+dict.dict.size()-dict.n_phrases)+1;
     vector_t ranks(dict.n_phrases, 0, width);
+
     bv_rs_t d_lim_rs(&dict.d_lim);
     phrase_map_t new_phrases_ht;
     string_t phrase(2, dict.dict.width());
-
 
     bool is_maximal, exists_as_rule;
     size_t i=1, run_bg, rem_elms=0, new_phrases=0, existing_phrases=0;
@@ -55,15 +55,6 @@ void compress_dictionary(dictionary &dict, vector_t &sa, gram_info_t &p_gram,
 
         is_maximal = false;
         run_bg = i-1;
-
-        //TODO
-        /*size_t k=prev_pos;
-        std::cout<<i-1<<" "<<prev_pos<<" "<<exists_as_rule<<" "<<is_maximal<<" "<<prev_l_sym<<"\t";
-        while(!dict.d_lim[k]){
-            std::cout<<dict.dict[k++]<<" ";
-        }
-        std::cout<<dict.dict[k]<<std::endl;*/
-        //
 
         do {
             pos = sa[i]-1;
@@ -90,21 +81,11 @@ void compress_dictionary(dictionary &dict, vector_t &sa, gram_info_t &p_gram,
                 }
                 prev_pos = pos;
                 if (l_sym != dummy_sym) prev_l_sym = l_sym;
-
-                //TODO
-                /*k=pos;
-                std::cout<<i<<" "<<pos<<" "<<exists_as_rule<<" "<<is_maximal<<" "<<l_sym<<"\t";
-                while(!dict.d_lim[k]){
-                    std::cout<<dict.dict[k++]<<" ";
-                }
-                std::cout<<dict.dict[k]<<std::endl;*/
-                //
             }else{
                 lcs=0;
             }
             i++;
         } while (i<sa.size() && lcs!=0);
-        //std::cout<<" "<<std::endl;
 
         if(exists_as_rule || is_maximal) {
 
@@ -131,14 +112,6 @@ void compress_dictionary(dictionary &dict, vector_t &sa, gram_info_t &p_gram,
                     phrase.push_back(dict.dict[tmp_pos--]);
                 }while(tmp_pos>=tmp_pos2);
 
-                //hash the phrase to check then if it is
-                // embedded in another phrase
-                /*std::cout<<run_bg<<" "<<run_end<<" "<<rank+1+dict.max_sym<<" -> ";
-                for(size_t u=phrase.size();u-->0;){
-                    std::cout<<phrase[u]<<" ";
-                }
-                std::cout<<""<<std::endl;*/
-
                 //hash only those phrases that can be proper
                 // suffixes of other phrases
                 if(phrase.size()>1){
@@ -146,22 +119,11 @@ void compress_dictionary(dictionary &dict, vector_t &sa, gram_info_t &p_gram,
                     auto res = new_phrases_ht.insert(phrase.data(), phrase.n_bits(), rank+1);
                     assert(res.second);
                 }
-                /*std::cout<<sa[run_bg]<<" ";
-                for(size_t u=phrase.size();u-->0;){
-                    std::cout<<phrase[u]<<" ";
-                }
-                std::cout<<""<<std::endl;*/
-
                 //invalidate the extra occurrences of the phrase
                 for(size_t j=run_bg+1;j<=run_end;j++) sa[j] = 0;
                 rem_elms+=run_end-run_bg;
             }
 
-            /*k=sa[run_bg]-1;
-            while(!dict.d_lim[k]){
-                std::cout<<dict.dict[k++]<<" ";
-            }
-            std::cout<<dict.dict[k]<<" "<<run_bg<<" "<<run_end<<std::endl;*/
             rank++;
         }
         //
@@ -173,7 +135,6 @@ void compress_dictionary(dictionary &dict, vector_t &sa, gram_info_t &p_gram,
             ranks[d_lim_rs(sa[i-1]-1)] = rank+1;
             phrases_sa_ranges.emplace_back((i-1)-rem_elms);
         }
-        //existing_phrases++;
     }
 
     k=0;
@@ -195,19 +156,6 @@ void compress_dictionary(dictionary &dict, vector_t &sa, gram_info_t &p_gram,
     }
     sdsl::util::clear(ranks);
     sdsl::util::clear(d_lim_rs);
-
-    vector_t inv_sa(sa.size(), 0, sdsl::bits::hi(sa.size())+1);
-    bv_t inv_sa_bv(dict.dict.size(), false);
-    for(auto const& sa_pos : sa){
-        inv_sa_bv[sa_pos-1] = true;
-    }
-
-    bv_rs_t inv_sa_bv_rs(&inv_sa_bv);
-    j = 0;
-    for(auto const& sa_pos : sa){
-        inv_sa[inv_sa_bv_rs(sa_pos-1)] = j;
-        j++;
-    }
 
     //collapse the full dictionary in the grammar
     size_t em_nt, p_len;
@@ -234,70 +182,42 @@ void compress_dictionary(dictionary &dict, vector_t &sa, gram_info_t &p_gram,
         //check if the proper suffixes exists as phrases
         found = false;
         while(phrase.size()>1){
-            /*for(size_t u=phrase.size();u-->0;){
-                std::cout<<phrase[u]<<" ";
-            }
-            std::cout<<""<<std::endl;*/
             phrase.mask_tail();
             auto res = new_phrases_ht.find(phrase.data(), phrase.n_bits());
             if(res.second){
                 em_nt = 0;
                 new_phrases_ht.get_value_from(res.first, em_nt);
                 found = true;
-                //std::cout<<" found: "<<dict.max_sym+em_nt<<std::endl;
                 break;
             }
             phrase.pop_back();
             p_len++;
         }
 
-        //std::cout<<dict.max_sym+rank<<" -> ";
         if(!found){
             while(!dict.d_lim[tmp_pos]){
-                assert(inv_sa_bv[tmp_pos]);
-                sa[inv_sa[inv_sa_bv_rs(tmp_pos)]] = k++;
-                //std::cout<<dict.min_sym+dict.dict[tmp_pos]<<" ";
                 rules.push_back(dict.min_sym+dict.dict[tmp_pos++]);
                 r_lim.push_back(false);
             }
 
             rules.push_back(dict.min_sym+dict.dict[tmp_pos]);
-            //std::cout<<dict.min_sym+dict.dict[tmp_pos]<<std::endl;
             r_lim.push_back(true);
             k++;
         }else{
             j = 0;
             while(j<p_len){
-                assert(inv_sa_bv[tmp_pos+j]);
-                sa[inv_sa[inv_sa_bv_rs(tmp_pos+j)]] = k++;
                 rules.push_back(dict.min_sym+dict.dict[tmp_pos+j]);
-                //std::cout<<dict.min_sym+dict.dict[tmp_pos+j]<<" ";
                 r_lim.push_back(false);
                 j++;
             }
-            //std::cout<<" "<<std::endl;
-
-
             assert(em_nt>0);
-            //std::cout<<dict.max_sym+em_nt<<std::endl;
             rules.push_back(dict.max_sym+em_nt);
             r_lim.push_back(true);
             k++;
         }
-
-        //TODO
-        //rank++;
-        //
     }
-
     p_gram.rules_breaks.push_back(phrases_sa_ranges.size());
     p_gram.r += phrases_sa_ranges.size();
-
-    /*size_t k=pos;
-    while(!dict.d_lim[k]){
-        std::cout<<dict.dict[k++]<<" ";
-    }
-    std::cout<<dict.dict[k]<<std::endl;*/
 }
 
 void assign_ids(phrase_map_t &mp_map, ivb_t &r, bvb_t &r_lim, dictionary &dict, gram_info_t &p_gram,
@@ -307,41 +227,7 @@ void assign_ids(phrase_map_t &mp_map, ivb_t &r, bvb_t &r_lim, dictionary &dict, 
     suffix_induction(sa_file, dict.dict, dict.d_lim, dict.alphabet);
     vector_t sa;
     sdsl::load_from_file(sa, sa_file);
-
-    /*bv_rs_t d_lim_rs(&dict.d_lim);
-    vector_t ranks(dict.n_phrases, 0, sdsl::bits::hi(dict.n_phrases)+1);
-    size_t rank = 0, pos;
-    for(auto && i : sa){
-        if(i==0) continue;
-        pos = i-1;
-        //write the dictionary in the grammar
-        if(pos==0 || dict.d_lim[pos-1]){
-            ranks[d_lim_rs(pos)] = rank++;
-            size_t j=pos;
-            while(!dict.d_lim[j]){
-                r.push_back(dict.min_sym+dict.dict[j++]);
-                r_lim.push_back(false);
-            }
-            assert(dict.d_lim[j]);
-            r.push_back(dict.min_sym+dict.dict[j]);
-            r_lim.push_back(true);
-        }
-    }*/
-
     compress_dictionary(dict, sa, p_gram, r_lim, r, mp_map);
-
-    //assign the ranks
-    /*size_t j=0;
-    for(auto const& ptr : mp_map){
-        //modify the key value
-        phrase_map_t::val_type val=0;
-        mp_map.get_value_from(ptr, val);
-        val |= (dict.max_sym+ranks[j++]+1)<<1UL;
-        mp_map.insert_value_at(ptr, val);
-        //
-    }
-    p_gram.rules_breaks.push_back(rank);
-    p_gram.r +=rank;*/
 }
 
 void join_parse_chunks(const std::string &output_file, std::vector<std::string> &chunk_files) {

@@ -488,10 +488,9 @@ void build_gram(std::string &i_file, std::string &p_gram_file,
     p_gram.r = p_gram.max_tsym + 1;
 
     build_lc_gram<lms_parsing>(i_file, n_threads, hbuff_size, p_gram, alphabet, config);
-    //suffpair(p_gram, config);
     //run_length_compress(p_gram, config);
     simplify_grammar(p_gram, false);
-    //check_plain_grammar(p_gram, i_file);
+    check_plain_grammar(p_gram, i_file);
     //
 
     std::cout<<"  Final grammar: " << std::endl;
