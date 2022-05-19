@@ -227,6 +227,18 @@ void assign_ids(phrase_map_t &mp_map, ivb_t &r, bvb_t &r_lim, dictionary &dict, 
     suffix_induction(sa_file, dict.dict, dict.d_lim, dict.alphabet);
     vector_t sa;
     sdsl::load_from_file(sa, sa_file);
+
+    //TODO testing
+    for(auto && i : sa){
+        if(i!=0){
+            size_t pos = i-1;
+            do{
+                std::cout<<dict.dict[pos]<<" ";
+            }while(!dict.d_lim[pos++]);
+            std::cout<<""<<std::endl;
+        }
+    }
+    //
     compress_dictionary(dict, sa, p_gram, r_lim, r, mp_map);
 }
 

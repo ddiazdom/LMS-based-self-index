@@ -78,10 +78,16 @@ struct lms_parsing{
         //if end is no the last symbol, we will assume that end is
         // the symbol to the left of a local minima
         uint8_t s_type, prev_s_type;
-        prev_s_type = end==ifs.size()-1 ? U_TYPE : L_TYPE;
-
         sym_type curr_sym, prev_sym;
         string_t curr_lms(2, sdsl::bits::hi(max_sym)+1);
+
+        if(ifs.read(end)==10){
+            end--;
+            prev_s_type = U_TYPE;
+        }else{
+            prev_s_type = L_TYPE;
+        }
+
         prev_sym = ifs.read(end);
         curr_lms.push_back(prev_sym);
 
@@ -106,14 +112,6 @@ struct lms_parsing{
             if (i==prev_suf_pos ||
                 out_of_alphabet(curr_sym)) {
 
-                //get the previous text position j such that
-                // T[j] recursively expands to a suffix of
-                // some string in the input collection
-                if(i==prev_suf_pos){
-                    prev_suf_pos = suf_pos[p_idx--];
-                    curr_lms.push_back(0);
-                }
-
                 //TODO testing
                 for(size_t j=0;j<curr_lms.size();j++){
                     if(j==(curr_lms.size()-1)){
@@ -127,8 +125,23 @@ struct lms_parsing{
                     }
                 }
                 //
+
+                //get the previous text position j such that
+                // T[j] recursively expands to a suffix of
+                // some string in the input collection
+                if(i==prev_suf_pos){
+                    prev_suf_pos = suf_pos[--p_idx];
+                    curr_lms.push_back(0);
+                }
+
                 task(curr_lms);
                 curr_lms.clear();
+
+                if(curr_sym==10){
+                    std::cout<<" ";
+                    i--;
+                    curr_sym = ifs.read(i);
+                }
                 s_type = U_TYPE;
             } else {
                 if (curr_sym < prev_sym) {//S_TYPE type
