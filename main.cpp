@@ -11,7 +11,6 @@ struct arguments{
     std::string tmp_dir;
     size_t n_threads{};
     size_t b_buff=16;
-    uint8_t comp_lvl=1;
     float hbuff_frac=0.5;
     bool ver=false;
     bool keep=false;
@@ -53,7 +52,6 @@ static void parse_app(CLI::App& app, struct arguments& args){
                       args.tmp_dir,
                       "Temporal folder (def. /tmp/lc_gram.xxxx)")->
             check(CLI::ExistingDirectory)->default_val("/tmp");
-    gram->add_option("-L,--level-compression", args.comp_lvl, "Level of compression")->check(CLI::Range(1,2));
 
     CLI::App *dc = app.add_subcommand("decomp", "Decompress a locally consistent grammar to a file");
     dc->add_option("GRAM",
@@ -134,7 +132,6 @@ int main(int argc, char** argv) {
     if(app.got_subcommand("gram")) {
 
         std::cout << "Input file:        "<<args.input_file<<std::endl;
-        std::cout << "Compression level: "<<(int)args.comp_lvl<<std::endl;
         std::cout << "Computing the grammar: "<<std::endl;
         std::string tmp_folder = create_temp_folder(args.tmp_dir, "lc_gram");
 
@@ -143,7 +140,7 @@ int main(int argc, char** argv) {
             args.output_file += ".gram";
         }
 
-        build_gram(args.input_file, args.output_file, args.comp_lvl, tmp_folder, args.n_threads, args.hbuff_frac);
+        build_gram(args.input_file, args.output_file, tmp_folder, args.n_threads, args.hbuff_frac);
 
     }else if(app.got_subcommand("decomp")){
 

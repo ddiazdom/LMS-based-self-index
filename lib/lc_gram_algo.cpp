@@ -352,21 +352,21 @@ size_t join_thread_phrases(phrase_map_t& map, std::vector<std::string> &files) {
 
 template<template<class, class> class lc_parser_t>
 void build_lc_gram(std::string &i_file, size_t n_threads, size_t hbuff_size,
-                      gram_info_t &p_gram, alpha_t alphabet, sdsl::cache_config &config) {
+                   gram_info_t &p_gram, /*alpha_t alphabet,*/ sdsl::cache_config &config) {
 
     std::cout<<"  Generating a locally consistent grammar:    "<<std::endl;
     std::string output_file = sdsl::cache_file_name("tmp_output", config);
     std::string tmp_i_file = sdsl::cache_file_name("tmp_input", config);
 
+    /*
     // given an index i in symbol_desc
     //0 symbol i is in alphabet is unique
     //>2 symbol i is sep symbol
     sdsl::int_vector<2> symbol_desc(alphabet.back().first+1,0);
-
     for(auto & sym : alphabet){
         symbol_desc[sym.first] = sym.second > 1;
     }
-    symbol_desc[alphabet[0].first]+=2;
+    symbol_desc[alphabet[0].first]+=2;*/
 
     ivb_t rules(p_gram.rules_file, std::ios::out, BUFFER_SIZE);
     bvb_t rules_lim(p_gram.rules_lim_file, std::ios::out);
@@ -387,19 +387,17 @@ void build_lc_gram(std::string &i_file, size_t n_threads, size_t hbuff_size,
     std::cout<<"    Parsing round "<<iter++<<std::endl;
     rem_phrases = build_lc_gram_int<byte_parser_t>(i_file, tmp_i_file,
                                              n_threads, hbuff_size,
-                                             p_gram, rules, rules_lim,
-                                             symbol_desc, config);
+                                             p_gram, rules, rules_lim, config);
     while (rem_phrases > 0) {
         std::cout<<"    Parsing round "<<iter++<<std::endl;
         rem_phrases = build_lc_gram_int<int_parser_t>(tmp_i_file, output_file,
                                                       n_threads, hbuff_size,
-                                                      p_gram, rules, rules_lim,
-                                                      symbol_desc, config);
+                                                      p_gram, rules, rules_lim, config);
         remove(tmp_i_file.c_str());
         rename(output_file.c_str(), tmp_i_file.c_str());
     }
 
-    sdsl::util::clear(symbol_desc);
+    //sdsl::util::clear(symbol_desc);
 
     {//put the compressed string at end
         std::ifstream c_vec(tmp_i_file, std::ifstream::binary);
@@ -453,14 +451,17 @@ template<class parser_t, class out_sym_t>
 size_t build_lc_gram_int(std::string &i_file, std::string &o_file,
                          size_t n_threads, size_t hbuff_size,
                          gram_info_t &p_gram, ivb_t &rules,
-                         bvb_t &rules_lim, sdsl::int_vector<2> &phrase_desc,
+                         bvb_t &rules_lim,
                          sdsl::cache_config &config) {
 
     typedef typename parser_t::sym_type          sym_type;
     typedef typename parser_t::stream_type       stream_type;
     typedef parse_data_t<stream_type, out_sym_t> parse_data_type;
 
-    parser_t parser(phrase_desc);
+    size_t min_sym = p_gram.rules_breaks.empty() ? 0 : p_gram.r - p_gram.rules_breaks.back();
+    size_t max_sym = p_gram.r-1;
+
+    parser_t parser(p_gram.suf_pos, min_sym, max_sym);
 
     phrase_map_t mp_table(0, "", 0.8);
 
@@ -512,8 +513,6 @@ size_t build_lc_gram_int(std::string &i_file, std::string &o_file,
     if(mp_table.size()>0){
 
         size_t width = sdsl::bits::hi(p_gram.r+1)+1;
-        size_t min_sym = p_gram.rules_breaks.empty() ? 0 : p_gram.r - p_gram.rules_breaks.back();
-        size_t max_sym = p_gram.r-1;
         size_t dict_syms = dict_bits/width;
 
         //p_gram.rules_breaks.push_back(mp_table.size());
@@ -562,29 +561,6 @@ size_t build_lc_gram_int(std::string &i_file, std::string &o_file,
             i_file_stream<size_t> ifs(o_file, BUFFER_SIZE);
             psize = ifs.tot_cells;
         }
-
-        {
-            //keep track of the phrases that have to be rephrased
-            phrase_desc.resize(p_gram.r);
-            std::cout << "      Updating symbols status" << std::endl;
-            auto it = mp_table.begin();
-            auto it_end = mp_table.end();
-            size_t tmp_value, sym;
-
-            while (it != it_end) {
-
-                tmp_value = 0;
-                auto val = it.value();
-
-                //read the (reversed) last symbol
-                sym = key_w.read(*it, 0);
-                if (phrase_desc[sym] & 2U) {//phrase is suffix of some string
-                    tmp_value += 2;
-                }
-                phrase_desc[val >> 1UL] = tmp_value;
-                ++it;
-            }
-        }
     }else{ //just copy the input
         std::ifstream in(i_file, std::ios_base::binary);
         std::ofstream out(o_file, std::ios_base::binary);
@@ -619,12 +595,12 @@ size_t build_lc_gram_int(std::string &i_file, std::string &o_file,
     }
 }
 
-template void build_lc_gram<lms_parsing>(std::string &i_file, size_t n_threads, size_t hbuff_size, gram_info_t &p_gram, alpha_t alphabet, sdsl::cache_config &config);
+template void build_lc_gram<lms_parsing>(std::string &i_file, size_t n_threads, size_t hbuff_size, gram_info_t &p_gram,/*, alpha_t alphabet,*/ sdsl::cache_config &config);
 
 template size_t build_lc_gram_int<lms_parsing<i_file_stream<uint8_t>, string_t>>(std::string &i_file, std::string &o_file, size_t n_threads, size_t hbuff_size,
                                            gram_info_t &p_gram, ivb_t &rules, bvb_t &rules_lim,
-                                           sdsl::int_vector<2> &phrase_desc, sdsl::cache_config &config);
+                                           /*sdsl::int_vector<2> &phrase_desc,*/ sdsl::cache_config &config);
 
 template size_t build_lc_gram_int<lms_parsing<i_file_stream<size_t>, string_t>>(std::string &i_file, std::string &o_file, size_t n_threads, size_t hbuff_size,
                                           gram_info_t &p_gram, ivb_t &rules, bvb_t &rules_lim,
-                                          sdsl::int_vector<2> &phrase_desc, sdsl::cache_config &config);
+                                          /*sdsl::int_vector<2> &phrase_desc,*/ sdsl::cache_config &config);

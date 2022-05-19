@@ -22,6 +22,12 @@ typedef bit_hash_table<bool,1>                  dict_t;
 typedef typename dict_t::buff_t                 ht_buff_t;
 typedef std::vector<std::pair<uint8_t, size_t>> alpha_t;
 
+struct string_collection{
+    std::vector<size_t> suf_pos;
+    std::vector<std::pair<uint8_t, size_t>> alphabet;
+    size_t n_syms=0;
+};
+
 // the phrases are stored in a bit-compressed hash table:
 // this wrapper reinterprets the bits back as phrases
 struct key_wrapper{

@@ -237,36 +237,47 @@ bv_t mark_disposable_symbols(gram_info_t &p_gram) {
     return rem_nts;
 }
 
-alpha_t get_alphabet(std::string &i_file) {
+string_collection get_alphabet(std::string &i_file) {
 
     std::cout << "  Reading input file:" << std::endl;
 
     //TODO this can be done in parallel if the input is too big
     size_t alph_frq[256] = {0};
-    alpha_t alphabet;
+    string_collection str_coll;
+    uint8_t sym;
 
     i_file_stream<uint8_t> if_stream(i_file, BUFFER_SIZE);
+    std::vector<size_t> suf_pos;
     for (size_t i = 0; i < if_stream.tot_cells; i++) {
-        alph_frq[if_stream.read(i)]++;
+        sym = if_stream.read(i);
+        alph_frq[sym]++;
+        if(sym=='\n'){
+            str_coll.suf_pos.push_back(i);
+        }
     }
+    suf_pos.shrink_to_fit();
 
     for (size_t i = 0; i < 256; i++) {
-        if (alph_frq[i] > 0) alphabet.emplace_back(i, alph_frq[i]);
+        if (alph_frq[i] > 0){
+            str_coll.alphabet.emplace_back(i, alph_frq[i]);
+            str_coll.n_syms+=alph_frq[i];
+        }
     }
 
     std::cout<<"    Number of characters: "<< if_stream.size() << std::endl;
-    std::cout<<"    Number of strings:    "<< alphabet[0].second << std::endl;
-    std::cout<<"    Alphabet:             "<< alphabet.size() << std::endl;
-    std::cout<<"    Smallest symbol:      "<< (int) alphabet[0].first << std::endl;
-    std::cout<<"    Greatest symbol:      "<< (int) alphabet.back().first << std::endl;
+    std::cout<<"    Number of strings:    "<< str_coll.alphabet[0].second << std::endl;
+    std::cout<<"    Alphabet:             "<< str_coll.alphabet.size() << std::endl;
+    std::cout<<"    Smallest symbol:      "<< (int) str_coll.alphabet[0].first << std::endl;
+    std::cout<<"    Greatest symbol:      "<< (int) str_coll.alphabet.back().first << std::endl;
 
-    if (if_stream.read(if_stream.size() - 1) != alphabet[0].first) {
-        std::cout << "Error: sep. symbol " << alphabet[0].first << " differs from last symbol in file "
+    if (if_stream.read(if_stream.size() - 1) != str_coll.alphabet[0].first) {
+        std::cout << "Error: sep. symbol " << str_coll.alphabet[0].first << " differs from last symbol in file "
                   << if_stream.read(if_stream.size() - 1) << std::endl;
         exit(1);
     }
-    return alphabet;
+    return str_coll;
 }
+
 void decomp(size_t nt, sdsl::int_vector<> &rules, bv_ss_t &rlim_ss, bv_t &rem_nt,
             bv_rs_t &rem_nt_rs, ivb_t &dec) {
 
@@ -465,32 +476,32 @@ void simplify_grammar(gram_info_t &p_gram, bool full_simplification) {
 }
 
 void build_gram(std::string &i_file, std::string &p_gram_file,
-                uint8_t comp_lvl, std::string& tmp_folder,
-                size_t n_threads, float hbuff_frac) {
-
-    auto alphabet = get_alphabet(i_file);
-    size_t n_chars = 0;
-    for (auto const &sym : alphabet) n_chars += sym.second;
-    auto hbuff_size = std::max<size_t>(64 * n_threads, size_t(std::ceil(float(n_chars) * hbuff_frac)));
+                std::string& tmp_folder, size_t n_threads,
+                float hbuff_frac) {
 
     sdsl::cache_config config(false, tmp_folder);
-    std::string g_info_file = sdsl::cache_file_name("g_info_file", config);
-
     std::string rules_file = sdsl::cache_file_name("m_rules", config);
     std::string rules_len_file = sdsl::cache_file_name("rules_len", config);
-
     gram_info_t p_gram(rules_file, rules_len_file);
-    p_gram.sigma = alphabet.size();
-    for(auto & sym : alphabet){
-        p_gram.sym_map[sym.first] = sym.first;
-    }
-    p_gram.max_tsym = alphabet.back().first;
-    p_gram.r = p_gram.max_tsym + 1;
+    size_t hbuff_size, n_chars;
 
-    build_lc_gram<lms_parsing>(i_file, n_threads, hbuff_size, p_gram, alphabet, config);
+    {
+        auto str_coll = get_alphabet(i_file);
+        n_chars = str_coll.n_syms;
+        hbuff_size = std::max<size_t>(64 * n_threads, size_t(std::ceil(float(n_chars) * hbuff_frac)));
+        p_gram.sigma = str_coll.alphabet.size();
+        for(auto & sym : str_coll.alphabet){
+            p_gram.sym_map[sym.first] = sym.first;
+        }
+        p_gram.max_tsym = str_coll.alphabet.back().first;
+        p_gram.r = p_gram.max_tsym + 1;
+        p_gram.suf_pos.swap(str_coll.suf_pos);
+    }
+
+    build_lc_gram<lms_parsing>(i_file, n_threads, hbuff_size, p_gram/*, alphabet*/, config);
     //run_length_compress(p_gram, config);
-    simplify_grammar(p_gram, false);
-    check_plain_grammar(p_gram, i_file);
+    //simplify_grammar(p_gram, false);
+    //check_plain_grammar(p_gram, i_file);
     //
 
     std::cout<<"  Final grammar: " << std::endl;
@@ -513,8 +524,7 @@ void build_gram(std::string &i_file, std::string &p_gram_file,
     std::cout<<"    Compression ratio:      " << INT_CEIL(p_gram.g*(sdsl::bits::hi(p_gram.r)+1),8)/double(n_chars) << std::endl;
 
     std::cout<<"  Storing the final grammar in " << p_gram_file <<std::endl;
-
-    if(comp_lvl==1){
+    /*if(comp_lvl==1){
         grammar<sdsl::int_vector<>> final_gram(p_gram, n_chars, alphabet[0].second);
         sdsl::store_to_file(final_gram, p_gram_file);
         final_gram.space_breakdown();
@@ -522,6 +532,6 @@ void build_gram(std::string &i_file, std::string &p_gram_file,
         grammar<huff_vector<>> final_gram(p_gram, n_chars, alphabet[0].second);
         sdsl::store_to_file(final_gram, p_gram_file);
         final_gram.space_breakdown();
-    }
+    }*/
 }
 

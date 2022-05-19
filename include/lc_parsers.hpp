@@ -5,8 +5,9 @@
 #ifndef LPG_COMPRESSOR_LC_PARSERS_HPP
 #define LPG_COMPRESSOR_LC_PARSERS_HPP
 
-#define L_TYPE false
-#define S_TYPE true
+#define U_TYPE 0 //unknown type
+#define L_TYPE 1
+#define S_TYPE 2
 
 template<class stream_t,
          class string_t>
@@ -15,12 +16,16 @@ struct lms_parsing{
     typedef stream_t                       stream_type;
     typedef typename stream_type::sym_type sym_type;
 
-    const sdsl::int_vector<2>& phrase_desc;
+    const std::vector<size_t>& suf_pos;//which positions of the input text store symbols that expand to suffixes
+    const size_t min_sym; //smallest symbol of the last parsing round
+    const size_t max_sym; //greatest symbol of the last parsing round
 
-    explicit lms_parsing(const sdsl::int_vector<2>& pr_desc): phrase_desc(pr_desc){};
+    explicit lms_parsing(const std::vector<size_t>& suf_pos_, size_t min_sym_, size_t max_sym_): suf_pos(suf_pos_),
+                                                                                                 min_sym(min_sym_),
+                                                                                                 max_sym(max_sym_){};
 
-    inline bool is_suffix(sym_type symbol) const{
-        return phrase_desc[symbol] & 2;
+    inline bool out_of_alphabet(sym_type sym) const{
+        return sym < min_sym;
     }
 
     /***
@@ -32,11 +37,16 @@ struct lms_parsing{
     long long prev_break(long long idx, stream_t& ifs) const {
 
         if(idx<=0) return 0;
+
+        size_t p_idx = std::distance(suf_pos.begin(),
+                                     std::lower_bound(suf_pos.begin(), suf_pos.end(), idx));
         size_t sym=ifs.read(idx), prev_sym=sym;
         size_t pos = idx;
-        while(pos<ifs.size() && !is_suffix(sym) && prev_sym == sym) {
+
+        while(pos<suf_pos[p_idx-1] && prev_sym == sym) {
             prev_sym = ifs.read(pos++);
         }
+
         bool type, prev_type = sym < prev_sym;
         prev_sym = sym;
 
@@ -47,7 +57,7 @@ struct lms_parsing{
             sym = ifs.read(idx);
             type = sym==prev_sym? prev_type : sym < prev_sym;
 
-            if(is_suffix(sym) || (type==L_TYPE && prev_type==S_TYPE)){
+            if(idx==(long long)suf_pos[p_idx-1] || (type==L_TYPE && prev_type==S_TYPE)){
                 return idx+1;
             }
             prev_sym = sym;
@@ -57,14 +67,34 @@ struct lms_parsing{
 
     void operator()(stream_t& ifs,
                     size_t start, size_t end,
-                    std::function<void(string_t&, bool)> task) const {
+                    std::function<void(string_t&)> task) const {
 
-        bool s_type, prev_s_type = S_TYPE;
+        //get the rightmost position j before T[end] such that T[j]
+        // expands to a suffix of some string
+        size_t p_idx = std::distance(suf_pos.begin(),
+                                     std::lower_bound(suf_pos.begin(), suf_pos.end(), end))-1;
+        size_t prev_suf_pos = suf_pos[p_idx];
+
+        //if end is no the last symbol, we will assume that end is
+        // the symbol to the left of a local minima
+        uint8_t s_type, prev_s_type;
+        prev_s_type = end==ifs.size()-1 ? U_TYPE : L_TYPE;
+
         sym_type curr_sym, prev_sym;
-
-        string_t curr_lms(2, sdsl::bits::hi(phrase_desc.size())+1);
+        string_t curr_lms(2, sdsl::bits::hi(max_sym)+1);
         prev_sym = ifs.read(end);
         curr_lms.push_back(prev_sym);
+
+        //TODO testing
+        for (size_t i = end+1; i-- > start;) {
+            if(ifs.read(i)==10){
+                std::cout<<"$"<<"";
+            }else{
+                std::cout<<(char)ifs.read(i)<<"";
+            }
+        }
+        std::cout<<""<<std::endl;
+        //
 
         for (size_t i = end; i-- > start;) {
 
@@ -73,13 +103,33 @@ struct lms_parsing{
             //                                     L_TYPE   S_TYPE*
             //                                        ---- ----
             //this is a junction between two strings = ...$ $...
-            if (is_suffix(curr_sym)) {
-                bool full_str = curr_lms.size()==1 && is_suffix(curr_lms[0]);
-                if (!curr_lms.empty()) {
-                    task(curr_lms, full_str);
+            if (i==prev_suf_pos ||
+                out_of_alphabet(curr_sym)) {
+
+                //get the previous text position j such that
+                // T[j] recursively expands to a suffix of
+                // some string in the input collection
+                if(i==prev_suf_pos){
+                    prev_suf_pos = suf_pos[p_idx--];
+                    curr_lms.push_back(0);
                 }
+
+                //TODO testing
+                for(size_t j=0;j<curr_lms.size();j++){
+                    if(j==(curr_lms.size()-1)){
+                        std::cout<<"*";
+                    }else{
+                        if(curr_lms[j]==10){
+                            std::cout<<"$"<<"";
+                        }else{
+                            std::cout<<(char)curr_lms[j]<<"";
+                        }
+                    }
+                }
+                //
+                task(curr_lms);
                 curr_lms.clear();
-                s_type = S_TYPE;
+                s_type = U_TYPE;
             } else {
                 if (curr_sym < prev_sym) {//S_TYPE type
                     s_type = S_TYPE;
@@ -87,13 +137,24 @@ struct lms_parsing{
                     s_type = prev_s_type;
                 } else {//L_TYPE type
                     s_type = L_TYPE;
-
                     if (prev_s_type == S_TYPE) {//Left-most S suffix
-                        if (curr_lms.size()>1) {
-                            task(curr_lms, false);
+                        task(curr_lms);
+
+                        //TODO testing
+                        for(size_t j=0;j<curr_lms.size();j++){
+                            if(j==(curr_lms.size()-1)){
+                                std::cout<<"*";
+                            }else{
+                                if(curr_lms[j]==10){
+                                   std::cout<<"$"<<"";
+                                }else{
+                                    std::cout<<(char)curr_lms[j]<<"";
+                                }
+                            }
                         }
+                        //
+
                         curr_lms.clear();
-                        curr_lms.push_back(prev_sym);
                     }
                 }
             }
@@ -102,12 +163,8 @@ struct lms_parsing{
             prev_s_type = s_type;
         }
         assert(curr_lms[0]!=1);
-        bool full_str = curr_lms.size()==1 &&
-                        is_suffix(curr_lms[0]) &&
-                        (start == 0 || is_suffix(ifs.read(start - 1)));
-        if(!curr_lms.empty()){
-            task(curr_lms, full_str);
-        }
+        task(curr_lms);
+        std::cout<<""<<std::endl;
     }
 
     std::vector<std::pair<size_t, size_t>> partition_text(size_t n_chunks,
@@ -129,9 +186,7 @@ struct lms_parsing{
             if(end!=n_chars-1){
                 long long tmp_end = prev_break(end, is);
                 end = tmp_end<0?  0 : size_t(tmp_end);
-                if(is_suffix(is.read(end-1))) end--;
-            }else{
-                assert(is_suffix(is.read(end)));
+                //if(is_suffix(is.read(end-1))) end--;
             }
 
             //std::cout<<"range: "<<start<<" "<<end<<std::endl;

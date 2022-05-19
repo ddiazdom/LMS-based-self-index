@@ -53,7 +53,8 @@ struct gram_info_t{
     std::unordered_map<size_t,uint8_t> sym_map; //map terminal symbols to their original byte symbols
     std::string                        rules_file; // m_rules are concatenated in this array
     std::string                        rules_lim_file; // bit vector marking the last symbol of every right-hand
-    std::vector<size_t>                rules_breaks; // number of m_rules generated in every LMS parsing round
+    std::vector<size_t>                rules_breaks; // number of rules generated in every parsing round
+    std::vector<size_t>                suf_pos; //which symbols in the compressed text expand to suffixes
     size_t                             n_p_rounds{}; // number of parsing rounds
     std::pair<size_t, size_t>          rl_rules={0,0};
     std::pair<size_t, size_t>          sp_rules={0,0};
