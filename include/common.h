@@ -28,6 +28,7 @@ struct string_collection{
     size_t n_syms=0;
 };
 
+
 // the phrases are stored in a bit-compressed hash table:
 // this wrapper reinterprets the bits back as phrases
 struct key_wrapper{
@@ -69,4 +70,51 @@ struct key_wrapper{
     }
 };
 
+struct dictionary {
+    size_t min_sym;
+    size_t max_sym;
+    size_t alphabet;
+    size_t n_phrases;
+    vector_t dict;
+    bv_t d_lim;
+    typedef size_t size_type;
+
+    dictionary(phrase_map_t &mp_map, size_t _min_sym, size_t _max_sym,
+               key_wrapper &key_w, size_t dict_syms): min_sym(_min_sym),
+                                                      max_sym(_max_sym),
+                                                      alphabet(max_sym-min_sym+1),
+                                                      n_phrases(mp_map.size()),
+                                                      dict(dict_syms, 0, sdsl::bits::hi(alphabet)+1),
+                                                      d_lim(dict_syms, false){
+        size_t j=0;
+        for (auto const &ptr : mp_map) {
+            for(size_t i=key_w.size(ptr);i-->0;){
+                dict[j] = key_w.read(ptr, i)-min_sym;
+                d_lim[j++] = false;
+            }
+            d_lim[j-1] = true;
+        }
+        assert(j==dict_syms);
+    }
+
+    size_type serialize(std::ostream& out, sdsl::structure_tree_node * v=nullptr, std::string name="") const{
+        sdsl::structure_tree_node* child = sdsl::structure_tree::add_child( v, name, sdsl::util::class_name(*this));
+        size_type written_bytes= sdsl::write_member(min_sym, out, child, "min_sym");
+        written_bytes+= sdsl::write_member(max_sym, out, child, "max_sym");
+        written_bytes+= sdsl::write_member(alphabet, out, child, "alphabet");
+        written_bytes+= sdsl::write_member(n_phrases, out, child, "n_phrases");
+        dict.serialize(out, child);
+        d_lim.serialize(out, child);
+        return written_bytes;
+    }
+
+    void load(std::istream& in){
+        sdsl::read_member(min_sym, in);
+        sdsl::read_member(max_sym, in);
+        sdsl::read_member(alphabet, in);
+        sdsl::read_member(n_phrases, in);
+        dict.load(in);
+        d_lim.load(in);
+    }
+};
 #endif //LPG_COMPRESSOR_COMMON_H

@@ -92,14 +92,14 @@ struct lms_parsing{
         curr_lms.push_back(prev_sym);
 
         //TODO testing
-        for (size_t i = end+1; i-- > start;) {
+        /*for (size_t i = end+1; i-- > start;) {
             if(ifs.read(i)==10){
                 std::cout<<"$"<<"";
             }else{
                 std::cout<<(char)ifs.read(i)<<"";
             }
         }
-        std::cout<<""<<std::endl;
+        std::cout<<""<<std::endl;*/
         //
 
         for (size_t i = end; i-- > start;) {
@@ -113,17 +113,17 @@ struct lms_parsing{
                 out_of_alphabet(curr_sym)) {
 
                 //TODO testing
-                for(size_t j=0;j<curr_lms.size();j++){
+                /*for(size_t j=0;j<curr_lms.size();j++){
                     if(j==(curr_lms.size()-1)){
-                        std::cout<<"*";
+                        std::cout<<"* ";
                     }else{
                         if(curr_lms[j]==10){
-                            std::cout<<"$"<<"";
+                            std::cout<<"$"<<" ";
                         }else{
-                            std::cout<<(char)curr_lms[j]<<"";
+                            std::cout<<(int)curr_lms[j]<<" ";
                         }
                     }
-                }
+                }*/
                 //
 
                 //get the previous text position j such that
@@ -132,13 +132,13 @@ struct lms_parsing{
                 if(i==prev_suf_pos){
                     prev_suf_pos = suf_pos[--p_idx];
                     curr_lms.push_back(0);
+                    //std::cout<<"\n";
                 }
 
                 task(curr_lms);
                 curr_lms.clear();
 
                 if(curr_sym==10){
-                    std::cout<<" ";
                     i--;
                     curr_sym = ifs.read(i);
                 }
@@ -154,17 +154,17 @@ struct lms_parsing{
                         task(curr_lms);
 
                         //TODO testing
-                        for(size_t j=0;j<curr_lms.size();j++){
+                        /*for(size_t j=0;j<curr_lms.size();j++){
                             if(j==(curr_lms.size()-1)){
-                                std::cout<<"*";
+                                std::cout<<"* ";
                             }else{
                                 if(curr_lms[j]==10){
                                    std::cout<<"$"<<"";
                                 }else{
-                                    std::cout<<(char)curr_lms[j]<<"";
+                                    std::cout<<(int)curr_lms[j]<<" ";
                                 }
                             }
-                        }
+                        }*/
                         //
 
                         curr_lms.clear();

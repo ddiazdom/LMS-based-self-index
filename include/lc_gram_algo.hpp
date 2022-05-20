@@ -22,67 +22,22 @@ struct parse_data_t {
     size_t                start;
     size_t                end;
     dict_t                thread_dict;
+    size_t                n_phrases=0;
+    std::vector<size_t>   new_suf_pos;
 
     parse_data_t(std::string &i_file_, std::string &o_file_, phrase_map_t &m_map_,
                  size_t start_, size_t end_, const size_t &hb_size,
                  void *hb_addr) : ifs(i_file_, BUFFER_SIZE),
-                                                         ofs(o_file_, BUFFER_SIZE, std::ios::out),
-                                                         m_map(m_map_),
-                                                         start(start_),
-                                                         end(end_),
-                                                         thread_dict(hb_size, o_file_ + "_phrases", 0.7, hb_addr) {
+                                  ofs(o_file_, BUFFER_SIZE, std::ios::out),
+                                  m_map(m_map_),
+                                  start(start_),
+                                  end(end_),
+                                  thread_dict(hb_size, o_file_ + "_phrases", 0.7, hb_addr) {
         //TODO for the moment the input string has to have a sep_symbol appended at the end
         //TODO assertion : sep_symbols cannot be consecutive
     };
 };
 
-struct dictionary{
-    size_t min_sym;
-    size_t max_sym;
-    size_t alphabet;
-    size_t n_phrases;
-    vector_t dict;
-    bv_t d_lim;
-    typedef size_t size_type;
-
-    dictionary(phrase_map_t &mp_map, size_t _min_sym, size_t _max_sym,
-               key_wrapper &key_w, size_t dict_syms): min_sym(_min_sym),
-                                                      max_sym(_max_sym),
-                                                      alphabet(max_sym-min_sym+1),
-                                                      n_phrases(mp_map.size()),
-                                                      dict(dict_syms, 0, sdsl::bits::hi(alphabet)+1),
-                                                      d_lim(dict_syms, false){
-        size_t j=0;
-        for (auto const &ptr : mp_map) {
-            for(size_t i=key_w.size(ptr);i-->0;){
-                dict[j] = key_w.read(ptr, i)-min_sym;
-                d_lim[j++] = false;
-            }
-            d_lim[j-1] = true;
-        }
-        assert(j==dict_syms);
-    }
-
-    size_type serialize(std::ostream& out, sdsl::structure_tree_node * v=nullptr, std::string name="") const{
-        sdsl::structure_tree_node* child = sdsl::structure_tree::add_child( v, name, sdsl::util::class_name(*this));
-        size_type written_bytes= sdsl::write_member(min_sym, out, child, "min_sym");
-        written_bytes+= sdsl::write_member(max_sym, out, child, "max_sym");
-        written_bytes+= sdsl::write_member(alphabet, out, child, "alphabet");
-        written_bytes+= sdsl::write_member(n_phrases, out, child, "n_phrases");
-        dict.serialize(out, child);
-        d_lim.serialize(out, child);
-        return written_bytes;
-    }
-
-    void load(std::istream& in){
-        sdsl::read_member(min_sym, in);
-        sdsl::read_member(max_sym, in);
-        sdsl::read_member(alphabet, in);
-        sdsl::read_member(n_phrases, in);
-        dict.load(in);
-        d_lim.load(in);
-    }
-};
 
 template<typename parse_data_t,
          typename parser_t>
@@ -92,7 +47,9 @@ struct hash_functor{
 
             //I use this flag to mark those phrases
             // representing the end of a string
-            if(phrase.back()==0) phrase.pop_back();
+            if(phrase.back()==0){
+                phrase.pop_back();
+            }
 
             if(phrase.size()>1){
                 phrase.mask_tail();
@@ -109,8 +66,6 @@ template<typename parse_data_t,
          typename parser_t>
 struct parse_functor{
     void operator()(parse_data_t& data, parser_t& parser){
-        size_t pos=0;
-        std::vector<size_t> new_suf_pos;
         auto task = [&](string_t& phrase){
 
             // this indicates that the phrase expands to
@@ -118,7 +73,7 @@ struct parse_functor{
             // will a suffix of a string.
             if(phrase.back()==0){
                 phrase.pop_back();
-                new_suf_pos.push_back(pos+1);
+                data.new_suf_pos.push_back(data.n_phrases+1);
             }
 
             phrase.mask_tail();
@@ -131,7 +86,7 @@ struct parse_functor{
             }else{
                 data.ofs.push_back(phrase[0]);
             }
-            pos++;
+            data.n_phrases++;
         };
         parser(data.ifs, data.start, data.end, task);
         data.ofs.close();
