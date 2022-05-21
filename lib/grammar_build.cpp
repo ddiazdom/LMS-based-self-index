@@ -23,17 +23,16 @@ void check_plain_grammar(gram_info_t& p_gram, std::string& uncomp_file) {
     i_file_stream<uint8_t> if_stream(uncomp_file, BUFFER_SIZE);
 
     size_t start, end;
-    std::stack<std::pair<size_t, uint8_t>> stack;
+    std::stack<size_t> stack;
 
     size_t f = r_lim_ss(p_gram.r - 1) + 1;
     size_t l = r_lim_ss(p_gram.r);
-    size_t idx = 0;
-
+    size_t idx = 0, sf_pos=0;
 
     for(size_t i=f; i <= l; i++){
         //std::cout<<i-f<<" "<<l-f<<std::endl;
         tmp_decomp.clear();
-        stack.emplace(r[i], 1);
+        stack.emplace(r[i]);
         assert(stack.size()<=if_stream.size());
 
         while(!stack.empty()){
@@ -41,59 +40,45 @@ void check_plain_grammar(gram_info_t& p_gram, std::string& uncomp_file) {
             auto curr_sym = stack.top() ;
             stack.pop();
 
-            if(curr_sym.first==0){
+            if(curr_sym==0){
                 start = 0;
             }else{
-                start = r_lim_ss(curr_sym.first)+1;
+                start = r_lim_ss(curr_sym)+1;
             }
 
-            end = r_lim_ss(curr_sym.first+1);
+            end = r_lim_ss(curr_sym+1);
 
-            if(r[start] == curr_sym.first){
-                std::cout<<idx<<" "<<r[start]<<" "<<(int)curr_sym.first<<" "<<(int)p_gram.sym_map[curr_sym.first]<<" "<<(int)if_stream.read(idx)<<std::endl;
+            if(r[start] == curr_sym){
+                //std::cout<<idx<<" "<<r[start]<<" "<<(int)curr_sym<<" "<<(int)p_gram.sym_map[curr_sym]<<" "<<(int)if_stream.read(idx)<<std::endl;
                 //if(p_gram.sym_map[curr_sym.first]!=if_stream.read(idx)){
                 //    std::cout<<f<<" "<<i<<" "<<i-f<<std::endl;
                 //}
-                assert(p_gram.sym_map[curr_sym.first]==if_stream.read(idx));
+                assert(p_gram.sym_map[curr_sym]==if_stream.read(idx));
                 idx++;
             }else{
-                std::cout<<curr_sym.first<<" -> ";
-
-                if(curr_sym.first==1582){
-                    std::cout<<"holaa"<<std::endl;
-                }
-
-                if(p_gram.is_rl(curr_sym.first)){
+                //std::cout<<curr_sym<<" -> ";
+                if(p_gram.is_rl(curr_sym)){
                     assert(end-start+1==2);
                     for(size_t k=0;k<r[end];k++){
-                        stack.emplace(r[start], k==0);
+                        stack.emplace(r[start]);
                     }
                 }else{
-
-                    uint8_t is_sp;
-                    uint8_t is_first;
-                    if(curr_sym.second!=0){
-                        for(size_t j=end+1; j-->start;){
-                            is_sp =  j==end && p_gram.parsing_level(r[j])>p_gram.parsing_level(r[j-1]);
-                            is_first = j==start && curr_sym.second & 1UL;
-                            stack.emplace(r[j], is_first | (is_sp<<1UL));
-                        }
-                    }else{
-                        for(size_t j=end; j>start;j--){
-                            is_sp =  j==end && p_gram.parsing_level(r[j])>p_gram.parsing_level(r[j-1]);
-                            stack.emplace(r[j], is_sp<<1UL);
-                        }
-                    }
-
-                    for(size_t j=start; j<=end;j++){
-                        std::cout<<r[j]<<" ";
+                    for(size_t j=end+1; j-->start;){
+                        stack.emplace(r[j]);
                     }
                     /*for(size_t j=start; j<=end;j++){
-                        std::cout<<r[j]<<", "<<p_gram.parsing_level(r[j])<<" ";
+                        std::cout<<r[j]<<" ";
                     }*/
                 }
-                std::cout<<""<<std::endl;
+                //std::cout<<" "<<std::endl;
             }
+        }
+        //std::cout<<" new sym "<<p_gram.suf_pos[sf_pos]<<" "<<i-f<<std::endl;
+
+        if(p_gram.suf_pos[sf_pos]==(i-f)){
+            assert(if_stream.read(idx)==10);
+            idx++;
+            sf_pos++;
         }
     }
     std::cout<<"\tGrammar is correct!!"<<std::endl;
@@ -506,9 +491,9 @@ void build_gram(std::string &i_file, std::string &p_gram_file,
         p_gram.suf_pos.swap(str_coll.suf_pos);
     }
 
-    build_lc_gram<lms_parsing>(i_file, n_threads, hbuff_size, p_gram/*, alphabet*/, config);
-    //run_length_compress(p_gram, config);
-    //simplify_grammar(p_gram, false);
+    build_lc_gram<lms_parsing>(i_file, n_threads, hbuff_size, p_gram, config);
+    run_length_compress(p_gram, config);
+    //simplify_grammar(p_gram, true);
     check_plain_grammar(p_gram, i_file);
     //
 
