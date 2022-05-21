@@ -23,16 +23,16 @@ struct parse_data_t {
     size_t                end;
     dict_t                thread_dict;
     size_t                n_phrases=0;
-    std::vector<size_t>   new_suf_pos;
+    std::vector<size_t>   new_suf_pos;// the new position of the parse symbols that expand to suffixes of the original strings
 
     parse_data_t(std::string &i_file_, std::string &o_file_, phrase_map_t &m_map_,
                  size_t start_, size_t end_, const size_t &hb_size,
-                 void *hb_addr) : ifs(i_file_, BUFFER_SIZE),
-                                  ofs(o_file_, BUFFER_SIZE, std::ios::out),
-                                  m_map(m_map_),
-                                  start(start_),
-                                  end(end_),
-                                  thread_dict(hb_size, o_file_ + "_phrases", 0.7, hb_addr) {
+                 void *hb_addr): ifs(i_file_, BUFFER_SIZE),
+                                 ofs(o_file_, BUFFER_SIZE, std::ios::out),
+                                 m_map(m_map_),
+                                 start(start_),
+                                 end(end_),
+                                 thread_dict(hb_size, o_file_ + "_phrases", 0.7, hb_addr) {
         //TODO for the moment the input string has to have a sep_symbol appended at the end
         //TODO assertion : sep_symbols cannot be consecutive
     };
@@ -67,7 +67,6 @@ template<typename parse_data_t,
 struct parse_functor{
     void operator()(parse_data_t& data, parser_t& parser){
         auto task = [&](string_t& phrase){
-
             // this indicates that the phrase expands to
             // a prefix. Hence, the next phrase (pos+1)
             // will a suffix of a string.

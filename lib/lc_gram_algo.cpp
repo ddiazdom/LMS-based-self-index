@@ -605,7 +605,7 @@ size_t build_lc_gram_int(std::string &i_file, std::string &o_file,
     size_t min_sym = p_gram.rules_breaks.empty() ? 0 : p_gram.r - p_gram.rules_breaks.back();
     size_t max_sym = p_gram.r-1;
 
-    parser_t parser(p_gram.suf_pos, min_sym, max_sym);
+    parser_t parser(p_gram.suf_pos, min_sym, max_sym, p_gram.sep_tsym);
 
     phrase_map_t mp_table(0, "", 0.8);
 
@@ -627,8 +627,9 @@ size_t build_lc_gram_int(std::string &i_file, std::string &o_file,
     for(auto &range : thread_ranges) {
         std::string tmp_o_file = o_file.substr(0, o_file.size() - 5);
         tmp_o_file.append("_range_"+std::to_string(range.first)+"_"+std::to_string(range.second));
-        threads_data.emplace_back(i_file, tmp_o_file, mp_table, range.first, range.second, hb_bytes,
-                                  tmp_addr + (k*hb_bytes));
+        threads_data.emplace_back(i_file, tmp_o_file, mp_table,
+                                  range.first, range.second,
+                                  hb_bytes, tmp_addr + (k*hb_bytes));
         k++;
     }
 

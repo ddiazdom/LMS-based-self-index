@@ -19,10 +19,13 @@ struct lms_parsing{
     const std::vector<size_t>& suf_pos;//which positions of the input text store symbols that expand to suffixes
     const size_t min_sym; //smallest symbol of the last parsing round
     const size_t max_sym; //greatest symbol of the last parsing round
+    const uint8_t sep_tsym; //separator symbol in the text
 
-    explicit lms_parsing(const std::vector<size_t>& suf_pos_, size_t min_sym_, size_t max_sym_): suf_pos(suf_pos_),
-                                                                                                 min_sym(min_sym_),
-                                                                                                 max_sym(max_sym_){};
+    explicit lms_parsing(const std::vector<size_t>& suf_pos_, size_t min_sym_,
+                         size_t max_sym_, uint8_t sep_tsym_): suf_pos(suf_pos_),
+                                                              min_sym(min_sym_),
+                                                              max_sym(max_sym_),
+                                                              sep_tsym(sep_tsym_){};
 
     inline bool out_of_alphabet(sym_type sym) const{
         return sym < min_sym;
@@ -81,7 +84,7 @@ struct lms_parsing{
         sym_type curr_sym, prev_sym;
         string_t curr_lms(2, sdsl::bits::hi(max_sym)+1);
 
-        if(ifs.read(end)==10){
+        if(ifs.read(end)==sep_tsym){
             end--;
             prev_s_type = U_TYPE;
         }else{
@@ -138,7 +141,7 @@ struct lms_parsing{
                 task(curr_lms);
                 curr_lms.clear();
 
-                if(curr_sym==10){
+                if(curr_sym==sep_tsym){
                     i--;
                     curr_sym = ifs.read(i);
                 }
@@ -177,7 +180,7 @@ struct lms_parsing{
         }
         assert(curr_lms[0]!=1);
         task(curr_lms);
-        std::cout<<""<<std::endl;
+        //std::cout<<""<<std::endl;
     }
 
     std::vector<std::pair<size_t, size_t>> partition_text(size_t n_chunks,

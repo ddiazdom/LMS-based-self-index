@@ -76,7 +76,7 @@ void check_plain_grammar(gram_info_t& p_gram, std::string& uncomp_file) {
         //std::cout<<" new sym "<<p_gram.suf_pos[sf_pos]<<" "<<i-f<<std::endl;
 
         if(p_gram.suf_pos[sf_pos]==(i-f)){
-            assert(if_stream.read(idx)==10);
+            assert(if_stream.read(idx)==p_gram.sep_tsym);
             idx++;
             sf_pos++;
         }
@@ -244,6 +244,7 @@ string_collection get_alphabet(std::string &i_file) {
     for (size_t i = 0; i < if_stream.tot_cells; i++) {
         sym = if_stream.read(i);
         alph_frq[sym]++;
+        //TODO fix this
         if(sym=='\n'){
             str_coll.suf_pos.push_back(i);
         }
@@ -489,6 +490,7 @@ void build_gram(std::string &i_file, std::string &p_gram_file,
         p_gram.max_tsym = str_coll.alphabet.back().first;
         p_gram.r = p_gram.max_tsym + 1;
         p_gram.suf_pos.swap(str_coll.suf_pos);
+        p_gram.sep_tsym = str_coll.alphabet[0].first;
     }
 
     build_lc_gram<lms_parsing>(i_file, n_threads, hbuff_size, p_gram, config);
