@@ -25,8 +25,9 @@ void run_length_compress(gram_info_t& p_gram, sdsl::cache_config& config);
  * @param config : temporal files handler
  * @param hbuff_size : buffer size for the hashing step
  */
-void build_gram(std::string &i_file, std::string &p_gram_file, std::string& tmp_folder,
-                size_t n_threads, float hbuff_frac);
+void
+build_gram(std::string &i_file, std::string &p_gram_file, std::string &tmp_folder,
+           uint8_t &sep_symbol, size_t n_threads, float hbuff_frac);
 
 /***
  * check if the grammar is correct
@@ -34,6 +35,6 @@ void build_gram(std::string &i_file, std::string &p_gram_file, std::string& tmp_
  * @param uncomp_file : original input text
  */
 void check_plain_grammar(gram_info_t& p_gram, std::string& uncomp_file);
-string_collection get_alphabet(std::string &i_file);
+string_collection get_alphabet(std::string &i_file, uint8_t &sep_symbol);
 
 #endif //LPG_COMPRESSOR_GRAMMAR_BUILD_HPP

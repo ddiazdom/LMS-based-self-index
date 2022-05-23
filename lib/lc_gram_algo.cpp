@@ -633,7 +633,7 @@ size_t build_lc_gram_int(std::string &i_file, std::string &o_file,
         k++;
     }
 
-    std::cout<<"      Computing the phrases in the text"<<std::flush;
+    std::cout<<"      Computing the phrases in the text"<<std::endl;
     {
         std::vector<std::thread> threads(threads_data.size());
         hash_functor<parse_data_type, parser_t> hf;
@@ -683,7 +683,7 @@ size_t build_lc_gram_int(std::string &i_file, std::string &o_file,
             exit(1);
         }
 
-        std::cout<<"      Creating the parse of the text"<<std::flush;
+        std::cout<<"      Creating the parse of the text"<<std::endl;
         {//store the phrases into a new file
             std::vector<std::thread> threads(threads_data.size());
             parse_functor<parse_data_type, parser_t> pf;

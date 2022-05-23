@@ -12,6 +12,7 @@ struct arguments{
     size_t n_threads{};
     size_t b_buff=16;
     float hbuff_frac=0.5;
+    uint8_t sep_sym='\n';
     bool ver=false;
     bool keep=false;
 };
@@ -29,29 +30,34 @@ static void parse_app(CLI::App& app, struct arguments& args){
     fmt->column_width(23);
     app.formatter(fmt);
 
-    CLI::App *gram = app.add_subcommand("gram", "Create a locally consistent grammar");
+    CLI::App *idx = app.add_subcommand("index", "Create a locally consistent grammar");
     app.set_help_all_flag("--help-all", "Expand all help");
 
     app.add_flag("-V,--version",
                  args.ver, "Print the software version and exit");
 
-    gram->add_option("TEXT",
+    idx->add_option("TEXT",
                       args.input_file,
                       "Input text file")->check(CLI::ExistingFile)->required();
-    gram->add_option("-o,--output-file",
+    idx->add_option("-o,--output-file",
                       args.output_file,
                       "Output file")->type_name("");
-    gram->add_option("-t,--threads",
+    idx->add_option("-t,--threads",
                       args.n_threads,
                       "Maximum number of threads")->default_val(1);
-    gram->add_option("-f,--hbuff",
+    idx->add_option("-f,--hbuff",
                       args.hbuff_frac,
                       "Hashing step will use at most INPUT_SIZE*f bytes. O means no limit (def. 0.5)")->
             check(CLI::Range(0.0,1.0))->default_val(0.15);
-    gram->add_option("-T,--tmp",
+    idx->add_option("-T,--tmp",
                       args.tmp_dir,
-                      "Temporal folder (def. /tmp/lc_gram.xxxx)")->
-            check(CLI::ExistingDirectory)->default_val("/tmp");
+                      "Temporal folder (def. /tmp/wgg.xxxx)")->
+                      check(CLI::ExistingDirectory)->default_val("/tmp");
+    idx->add_option("-s,--sep-symbol",
+                    args.sep_sym,
+                    "Separator symbol if TEXT is a string collection (def. 10='\\n')")->
+                    default_val(10)->
+                    check(CLI::Range(0,255));
 
     CLI::App *dc = app.add_subcommand("decomp", "Decompress a locally consistent grammar to a file");
     dc->add_option("GRAM",
@@ -73,20 +79,6 @@ static void parse_app(CLI::App& app, struct arguments& args){
     dc->add_option("-B,--file-buffer",
                  args.b_buff,
                  "Size in MiB for the file buffer (def. 16 MiB)")->default_val(16);
-
-    CLI::App *bwt = app.add_subcommand("bwt", "build the BCR BWT of a text from its locally consistent grammar representation");
-    bwt->add_option("GRAM",
-                   args.input_file,
-                   "Input locally consistent grammar")->check(CLI::ExistingFile)->required();
-    bwt->add_option("-T,--tmp",
-                   args.tmp_dir,
-                   "Temporal folder (def. /tmp/bwt_gram.xxxx)")->check(CLI::ExistingDirectory)->default_val("/tmp");
-    bwt->add_option("-o,--output-file",
-                   args.output_file,
-                   "Output file storing the BCR BWT")->type_name("");
-    bwt->add_option("-t,--threads",
-                   args.n_threads,
-                   "Number of threads")->default_val(1);
 
     app.require_subcommand(1);
     app.footer("Report bugs to <diego.diaz@helsinki.fi>");
@@ -129,7 +121,7 @@ int main(int argc, char** argv) {
 
     CLI11_PARSE(app, argc, argv);
 
-    if(app.got_subcommand("gram")) {
+    if(app.got_subcommand("index")) {
 
         std::cout << "Input file:        "<<args.input_file<<std::endl;
         std::cout << "Computing the grammar: "<<std::endl;
@@ -140,7 +132,8 @@ int main(int argc, char** argv) {
             args.output_file += ".gram";
         }
 
-        build_gram(args.input_file, args.output_file, tmp_folder, args.n_threads, args.hbuff_frac);
+        build_gram(args.input_file, args.output_file, tmp_folder, args.sep_sym,
+                   args.n_threads, args.hbuff_frac);
 
     }else if(app.got_subcommand("decomp")){
 

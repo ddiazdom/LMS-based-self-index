@@ -75,8 +75,13 @@ struct lms_parsing{
         //get the rightmost position j before T[end] such that T[j]
         // expands to a suffix of some string
         size_t p_idx = std::distance(suf_pos.begin(),
-                                     std::lower_bound(suf_pos.begin(), suf_pos.end(), end))-1;
-        size_t prev_suf_pos = suf_pos[p_idx];
+                                     std::lower_bound(suf_pos.begin(), suf_pos.end(), end));
+        int64_t prev_suf_pos;
+        if(p_idx==0){
+            prev_suf_pos = -1;
+        }else{
+            prev_suf_pos = suf_pos[--p_idx];
+        }
 
         //if end is no the last symbol, we will assume that end is
         // the symbol to the left of a local minima
@@ -105,7 +110,7 @@ struct lms_parsing{
         std::cout<<""<<std::endl;*/
         //
 
-        for (size_t i = end; i-- > start;) {
+        for (auto i = (int64_t)end; i-- > (int64_t)start;) {
 
             curr_sym = ifs.read(i);
 
@@ -133,7 +138,13 @@ struct lms_parsing{
                 // T[j] recursively expands to a suffix of
                 // some string in the input collection
                 if(i==prev_suf_pos){
-                    prev_suf_pos = suf_pos[--p_idx];
+
+                    if(p_idx==0){
+                        prev_suf_pos = -1;
+                    }else{
+                        prev_suf_pos = suf_pos[--p_idx];
+                    }
+
                     curr_lms.push_back(0);
                     //std::cout<<"\n";
                 }

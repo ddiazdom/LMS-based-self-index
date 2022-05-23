@@ -50,9 +50,9 @@ void check_plain_grammar(gram_info_t& p_gram, std::string& uncomp_file) {
 
             if(r[start] == curr_sym){
                 //std::cout<<idx<<" "<<r[start]<<" "<<(int)curr_sym<<" "<<(int)p_gram.sym_map[curr_sym]<<" "<<(int)if_stream.read(idx)<<std::endl;
-                //if(p_gram.sym_map[curr_sym.first]!=if_stream.read(idx)){
-                //    std::cout<<f<<" "<<i<<" "<<i-f<<std::endl;
-                //}
+                if(p_gram.sym_map[curr_sym]!=if_stream.read(idx)){
+                    std::cout<<curr_sym<<" "<<p_gram.sym_map[curr_sym]<<" "<<if_stream.read(idx)<<std::endl;
+                }
                 assert(p_gram.sym_map[curr_sym]==if_stream.read(idx));
                 idx++;
             }else{
@@ -76,7 +76,7 @@ void check_plain_grammar(gram_info_t& p_gram, std::string& uncomp_file) {
         //std::cout<<" new sym "<<p_gram.suf_pos[sf_pos]<<" "<<i-f<<std::endl;
 
         if(p_gram.suf_pos[sf_pos]==(i-f)){
-            assert(if_stream.read(idx)==p_gram.sep_tsym);
+            assert(if_stream.read(idx)==p_gram.sym_map[p_gram.sep_tsym]);
             idx++;
             sf_pos++;
         }
@@ -227,10 +227,13 @@ bv_t mark_disposable_symbols(gram_info_t &p_gram) {
             }
         }
     }
+
+    rem_nts[p_gram.sep_tsym] = false;
+
     return rem_nts;
 }
 
-string_collection get_alphabet(std::string &i_file) {
+string_collection get_alphabet(std::string &i_file, uint8_t &sep_symbol) {
 
     std::cout << "  Reading input file:" << std::endl;
 
@@ -244,10 +247,11 @@ string_collection get_alphabet(std::string &i_file) {
     for (size_t i = 0; i < if_stream.tot_cells; i++) {
         sym = if_stream.read(i);
         alph_frq[sym]++;
-        //TODO fix this
-        if(sym=='\n'){
-            str_coll.suf_pos.push_back(i);
-        }
+        if(sym==sep_symbol) str_coll.suf_pos.push_back(i);
+    }
+
+    if(str_coll.suf_pos.empty()){
+        str_coll.suf_pos.push_back(if_stream.tot_cells-1);
     }
     suf_pos.shrink_to_fit();
 
@@ -259,7 +263,7 @@ string_collection get_alphabet(std::string &i_file) {
     }
 
     std::cout<<"    Number of characters: "<< if_stream.size() << std::endl;
-    std::cout<<"    Number of strings:    "<< str_coll.alphabet[0].second << std::endl;
+    std::cout<<"    Number of strings:    "<< str_coll.suf_pos.size() << std::endl;
     std::cout<<"    Alphabet:             "<< str_coll.alphabet.size() << std::endl;
     std::cout<<"    Smallest symbol:      "<< (int) str_coll.alphabet[0].first << std::endl;
     std::cout<<"    Greatest symbol:      "<< (int) str_coll.alphabet.back().first << std::endl;
@@ -274,7 +278,6 @@ string_collection get_alphabet(std::string &i_file) {
 
 void decomp(size_t nt, sdsl::int_vector<> &rules, bv_ss_t &rlim_ss, bv_t &rem_nt,
             bv_rs_t &rem_nt_rs, ivb_t &dec) {
-
     std::stack<size_t> stack;
     stack.push(nt);
     size_t start, end, tmp;
@@ -333,14 +336,19 @@ void simplify_grammar(gram_info_t &p_gram, bool full_simplification) {
             new_rules.push_back(k);
         }
 
-        size_t pos, tr_rule=p_gram.sigma, c_start;
+        size_t pos, tr_rule=p_gram.sigma, c_start=0, s_pos=0;
         for(size_t i=max_tsym+1,curr_rule=max_tsym+1;i<rules.size();curr_rule++){
             assert(r_lim[i-1]);
             pos = i;
             while(!r_lim[i]) i++;
             i++;
 
-            if((i-pos)==p_gram.c) c_start = new_rules.size();
+            //position where the compressed string
+            // starts in the grammar representation
+            if((i-pos)==p_gram.c){
+                c_start = new_rules.size();
+            }
+
             if(!rem_nts[curr_rule]){
                 if(!p_gram.is_rl(curr_rule)){//regular rule
                     for(size_t j=pos;j<i;j++){
@@ -349,6 +357,11 @@ void simplify_grammar(gram_info_t &p_gram, bool full_simplification) {
                         }else{
                             new_rules.push_back(rules[j]-rem_nts_rs(rules[j]));
                         }
+
+                        //update the positions of the symbols expanding to string suffixes
+                        if(c_start!=0 && (j-pos)==p_gram.suf_pos[s_pos]){
+                            p_gram.suf_pos[s_pos++] = (new_rules.size()-1) - c_start;
+                        }
                     }
                 }else{//run-length rule
                     assert((i-pos)==2);
@@ -356,11 +369,12 @@ void simplify_grammar(gram_info_t &p_gram, bool full_simplification) {
                     new_rules.push_back(rules[pos+1]);
                 }
                 new_r_lim[new_rules.size()-1]=true;
+
                 tr_rule++;
             }
         }
 
-        size_t rm_nt =rem_nts_rs(rem_nts.size());
+        size_t rm_nt = rem_nts_rs(rem_nts.size());
         float rm_per = float(rm_nt)/float(p_gram.r)*100;
         float comp_rat = float(new_rules.size())/float(rules.size());
 
@@ -373,6 +387,7 @@ void simplify_grammar(gram_info_t &p_gram, bool full_simplification) {
         p_gram.c = new_rules.size()-c_start;
         p_gram.r -= rm_nt;
         p_gram.g = new_rules.size();
+        p_gram.sep_tsym -= rem_nts_rs(p_gram.sep_tsym);//also compress the symbol for the sep symbol
 
         for(auto &sym : p_gram.rules_breaks){
             sym = sym - rem_nts_rs(sym);
@@ -448,6 +463,7 @@ void simplify_grammar(gram_info_t &p_gram, bool full_simplification) {
         new_r_lim.close();
         p_gram.r -= delta;
         p_gram.g = new_rules.size();
+        p_gram.sep_tsym = inv_sym_map[p_gram.sep_tsym];
 
         for(auto &sym : p_gram.rules_breaks){
             sym = sym - delta;
@@ -469,9 +485,9 @@ void simplify_grammar(gram_info_t &p_gram, bool full_simplification) {
     }
 }
 
-void build_gram(std::string &i_file, std::string &p_gram_file,
-                std::string& tmp_folder, size_t n_threads,
-                float hbuff_frac) {
+void
+build_gram(std::string &i_file, std::string &p_gram_file, std::string &tmp_folder, uint8_t &sep_symbol,
+           size_t n_threads, float hbuff_frac) {
 
     sdsl::cache_config config(false, tmp_folder);
     std::string rules_file = sdsl::cache_file_name("m_rules", config);
@@ -480,7 +496,7 @@ void build_gram(std::string &i_file, std::string &p_gram_file,
     size_t hbuff_size, n_chars;
 
     {
-        auto str_coll = get_alphabet(i_file);
+        auto str_coll = get_alphabet(i_file, sep_symbol);
         n_chars = str_coll.n_syms;
         hbuff_size = std::max<size_t>(64 * n_threads, size_t(std::ceil(float(n_chars) * hbuff_frac)));
         p_gram.sigma = str_coll.alphabet.size();
@@ -490,12 +506,12 @@ void build_gram(std::string &i_file, std::string &p_gram_file,
         p_gram.max_tsym = str_coll.alphabet.back().first;
         p_gram.r = p_gram.max_tsym + 1;
         p_gram.suf_pos.swap(str_coll.suf_pos);
-        p_gram.sep_tsym = str_coll.alphabet[0].first;
+        p_gram.sep_tsym = sep_symbol;
     }
 
     build_lc_gram<lms_parsing>(i_file, n_threads, hbuff_size, p_gram, config);
-    run_length_compress(p_gram, config);
-    //simplify_grammar(p_gram, true);
+    //run_length_compress(p_gram, config);
+    simplify_grammar(p_gram, false);
     check_plain_grammar(p_gram, i_file);
     //
 
