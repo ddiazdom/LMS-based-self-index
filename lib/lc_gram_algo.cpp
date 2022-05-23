@@ -657,7 +657,7 @@ size_t build_lc_gram_int(std::string &i_file, std::string &o_file,
     size_t psize=0;//<- for the iter stats
     if(mp_table.size()>0){
 
-        size_t width = sdsl::bits::hi(p_gram.r+1)+1;
+        size_t width = sdsl::bits::hi(max_sym)+1;
         size_t dict_syms = dict_bits/width;
 
         //p_gram.rules_breaks.push_back(mp_table.size());
