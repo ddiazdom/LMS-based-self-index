@@ -252,6 +252,7 @@ string_collection get_alphabet(std::string &i_file, uint8_t &sep_symbol) {
 
     if(str_coll.suf_pos.empty()){
         str_coll.suf_pos.push_back(if_stream.tot_cells-1);
+        alph_frq[sep_symbol] = 1;//just a dummy for consistency
     }
     suf_pos.shrink_to_fit();
 
@@ -265,14 +266,8 @@ string_collection get_alphabet(std::string &i_file, uint8_t &sep_symbol) {
     std::cout<<"    Number of characters: "<< if_stream.size() << std::endl;
     std::cout<<"    Number of strings:    "<< str_coll.suf_pos.size() << std::endl;
     std::cout<<"    Alphabet:             "<< str_coll.alphabet.size() << std::endl;
-    std::cout<<"    Smallest symbol:      "<< (int) str_coll.alphabet[0].first << std::endl;
-    std::cout<<"    Greatest symbol:      "<< (int) str_coll.alphabet.back().first << std::endl;
-
-    if (if_stream.read(if_stream.size() - 1) != str_coll.alphabet[0].first) {
-        std::cout << "Error: sep. symbol " << str_coll.alphabet[0].first << " differs from last symbol in file "
-                  << if_stream.read(if_stream.size() - 1) << std::endl;
-        exit(1);
-    }
+    //std::cout<<"    Smallest symbol:      "<< (int) str_coll.alphabet[0].first << std::endl;
+    //std::cout<<"    Greatest symbol:      "<< (int) str_coll.alphabet.back().first << std::endl;
     return str_coll;
 }
 
@@ -389,6 +384,14 @@ void simplify_grammar(gram_info_t &p_gram, bool full_simplification) {
         p_gram.g = new_rules.size();
         p_gram.sep_tsym -= rem_nts_rs(p_gram.sep_tsym);//also compress the symbol for the sep symbol
 
+        /*
+        //TODO testing
+        size_t tmp=0;
+        for(size_t i=0;i<new_r_lim.size();i++){
+            if(new_r_lim[i])tmp++;
+        }
+        std::cout<<tmp<<" "<<p_gram.r<<" "<<tr_rule<<" "<<std::endl;*/
+
         for(auto &sym : p_gram.rules_breaks){
             sym = sym - rem_nts_rs(sym);
         }
@@ -483,6 +486,7 @@ void simplify_grammar(gram_info_t &p_gram, bool full_simplification) {
             p_gram.sp_rules.second = last_sp - p_gram.sp_rules.first + 1;
         }
     }
+    p_gram.max_tsym = p_gram.sigma-1;
 }
 
 void
@@ -510,8 +514,8 @@ build_gram(std::string &i_file, std::string &p_gram_file, std::string &tmp_folde
     }
 
     build_lc_gram<lms_parsing>(i_file, n_threads, hbuff_size, p_gram, config);
-    //run_length_compress(p_gram, config);
-    simplify_grammar(p_gram, false);
+    run_length_compress(p_gram, config);
+    simplify_grammar(p_gram, true);
     check_plain_grammar(p_gram, i_file);
     //
 
@@ -522,12 +526,14 @@ build_gram(std::string &i_file, std::string &p_gram_file, std::string &tmp_folde
     std::cout<<"    Breakdown:"<<std::endl;
 
     for(size_t i=0;i<p_gram.n_p_rounds;i++){
-        std::cout<<"      Rules of parsing round "<<(i+1);
-        if(i<9) std::cout<<" ";
-        std::cout<<":    "<<p_gram.rules_breaks[i+1]-p_gram.rules_breaks[i]<<std::endl;
+        size_t n_rules = p_gram.rules_breaks[i+1]-p_gram.rules_breaks[i];
+        if(n_rules>0){
+            std::cout<<"      Rules of parsing round "<<(i+1);
+            if(i<9) std::cout<<" ";
+            std::cout<<":    "<<n_rules<<std::endl;
+        }
     }
     std::cout<<"      Run-length rules:             "<<p_gram.rl_rules.second<<std::endl;
-    std::cout<<"      SuffPair rules:               "<<p_gram.sp_rules.second<<std::endl;
 
     std::cout<<"  Compression stats: " << std::endl;
     std::cout<<"    Text size in MB:        " << double(n_chars)/1000000<<std::endl;
