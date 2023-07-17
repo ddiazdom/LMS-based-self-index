@@ -7,7 +7,7 @@
 
 
 #include <sdsl/int_vector.hpp>
-#include <sdsl/bp_support_sada.hpp>
+#include "../sdsl-files/bp_support_sada.hpp"
 #include <sdsl/rrr_vector.hpp>
 
 
@@ -34,11 +34,11 @@ public:
     void build(const sdsl::bit_vector &v) {
 
         auto _bv = sdsl::bit_vector(v.size() + 3);
-        _bv[0] = 1;
-        _bv[1] = 1;
-        _bv[2] = 0;
+        _bv[0] = true;
+        _bv[1] = true;
+        _bv[2] = false;
 
-        for (int i = 0; i < v.size(); ++i) {
+        for (size_t i = 0; i < v.size(); ++i) {
             _bv[3 + i] = v[i];
         }
         bit_vector = bv(_bv);
@@ -208,7 +208,7 @@ public:
     }
 
     template<typename K>
-    uint find_child_dbs(const uint &node, uint &ls, uint &hs, const K &f) const {
+    uint find_child_dbs(const uint &ode, uint &ls, uint &hs, const K &f) const {
 
         uint p2 = 1;
         /*
@@ -294,16 +294,13 @@ public:
     }
 
     size_type serialize(std::ostream &out, sdsl::structure_tree_node *v, std::string name) const {
-        sdsl::structure_tree_node *child = sdsl::structure_tree::add_child(v, name, sdsl::util::class_name(*this));
+        sdsl::structure_tree::add_child(v, name, sdsl::util::class_name(*this));
         size_t written_bytes = 0;
-
         written_bytes += sdsl::serialize(bit_vector, out);
         written_bytes += sdsl::serialize(bps, out);
         written_bytes += sdsl::serialize(rank_00, out);
         written_bytes += sdsl::serialize(select_00, out);
         written_bytes += sdsl::serialize(select_0, out);
-
-
         return written_bytes;
     }
 

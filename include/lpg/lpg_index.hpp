@@ -471,9 +471,9 @@ public:
     //statistics about the text: number of symbols, number of documents, etc
     void text_stats(std::string &list) {}
 
-    void locate(const std::string &pattern, std::set<uint64_t> &pos) const;
-    void locate_all_cuts(const std::string &pattern, std::set<uint64_t> &pos) const;
-    void locate_split_time(const std::string &pattern, std::set<uint64_t> &pos, uint64_t&, uint64_t&) const;
+    void locate(const std::string &pattern, std::set<lpg_index::size_type> &pos) const;
+    void locate_all_cuts(const std::string &pattern, std::set<lpg_index::size_type> &pos) const;
+    void locate_split_time(const std::string &pattern, std::set<lpg_index::size_type> &pos, size_t&, size_t&) const;
     //extract text[start, end] from the index
     void extract(size_t start, size_t end) {}
 
@@ -678,8 +678,6 @@ public:
         std::cout << "Index size " << sdsl::size_in_bytes(*this) << std::endl;
         std::cout << "Text size " << grammar_tree.get_text_len() << std::endl;
         std::cout << "Bps " << index_size * 8 /text_size << std::endl;
-
-
     }
 
     //search for a list of pattern (input is a file each line is a pattern)
@@ -725,6 +723,7 @@ public:
         written_bytes += rank_Y.serialize(out, child, "rank_Y");
         return written_bytes;
     }
+
     template<typename F>
     bool dfs_mirror_leaf_base_case(const uint64_t &preorder_node, const uint64_t &node, const F &f) const {
         size_type _x = grammar_tree.get_rule_from_preorder_node(preorder_node);//get the rule of the leaf
@@ -822,9 +821,6 @@ public:
 
     }
 
-
-
-
     void print_prefix_rule(const size_type &preorder_node,const  size_type& l) const {
         size_type cont = l;
         auto cmp = [this,&cont](const uint64_t &prenode, const uint64_t &node,const uint64_t &X) {
@@ -915,7 +911,9 @@ public:
         }
         return 1;
     }
+
     int cmp_suffix_grammar(const size_type &preorder_node, const std::string &str, const uint32_t &i) const {
+
         uint32_t ii = i, sfx_len = str.size();
         int r = 0;
         bool match = false;
@@ -969,7 +967,7 @@ public:
                 auto cnode = T.child(parent, j);
                 auto pcnode = T.pre_order(cnode);
                 dfs_leaf(pcnode, cnode, cmp);
-                // if they have a at least a symbol diferent return r
+                // if they have at least a symbol different return r
                 if (r != 0) return r;
                 // case : grammar sfx  is longer than the string sfx and string sfx  is prefix of grammar sfx
                 if (r == 0 && match) return 0;
@@ -977,7 +975,7 @@ public:
             }
             // case : string sfx is longer than the grammar sfx and grammar sfx is prefix of string sfx
             if (r == 0 && !match) return -1;
-            // in other case they have a at least a symbol diferent
+            // in other case they have a at least a symbol different
             return r;
         }
     }
@@ -1037,7 +1035,7 @@ public:
 
     void grid_search(const grid_query &range, const uint64_t &pattern_off, const uint32_t &m, const uint32_t &level,
                      std::vector<utils::primaryOcc> &occ) const {
-        std::vector<uint64_t> sfx;
+        std::vector<lpg_index::size_type> sfx;
 //        m_grid.search(range,level,sfx);
         m_grid.search_2d(range, sfx);
         occ.reserve(sfx.size());
@@ -1151,7 +1149,7 @@ public:
     typedef sdsl::int_vector_buffer<>                    ivb_t;
     typedef std::unordered_map<size_type,std::vector<size_type>>  nav_grammar;
 
-    nav_grammar build_nav_grammar(const lpg_build::plain_grammar_t& G, size_type& S) const {
+    static nav_grammar build_nav_grammar(const lpg_build::plain_grammar_t& G, size_type& S) {
 
         sdsl::int_vector<> rules_buff;
         std::ifstream _buf(G.rules_file,std::ios::in);
@@ -1163,7 +1161,11 @@ public:
             if(rules_buff[i] == 0)
                 zero_count++;
         }
-        if(zero_count != 2) std::cout<<"ERROR[RULES FILE] 0 APPEARS MORE THAN 1 TIME IN THE GRAMMAR:"<<zero_count<<std::endl;
+
+        if(zero_count != 2){
+            std::cout<<"ERROR[RULES FILE] 0 APPEARS MORE THAN 1 TIME IN THE GRAMMAR:"<<zero_count<<std::endl;
+            exit(1);
+        }
 
         bvb_t rules_lim_buff(G.rules_lim_file);
         size_type id = 0;
@@ -1174,11 +1176,11 @@ public:
             right_hand.push_back(rules_buff[i]);
             if(rules_buff[i] == 0) {
                 zero_count++;
-//                std::cout<<"right hand"<<std::endl;
-//                for (const auto &item : right_hand) {
-//                    std::cout<<item<<" ";
-//                }
-//                std::cout<<std::endl;
+                /*std::cout<<"right hand"<<std::endl;
+                for (const auto &item : right_hand) {
+                    std::cout<<item<<" ";
+                }
+                std::cout<<std::endl;*/
             }
             if(rules_lim_buff[i] == 1){
                 NG[id] = right_hand;
@@ -1187,16 +1189,14 @@ public:
             }
         }
         S = NG[id-1][0];
-//        std::cout<<"plain-grammar"<<std::endl;
-//        for (const auto &item : NG) {
-//            std::cout<<item.first<<"->";
-//            for (const auto &second : item.second) {
-//                std::cout<<second<<" ";
-//            }
-//            std::cout<<std::endl;
-//        }
-
-
+        /*std::cout<<"plain-grammar"<<std::endl;
+        for (const auto &item : NG) {
+            std::cout<<item.first<<"->";
+            for (const auto &second : item.second) {
+                std::cout<<second<<" ";
+            }
+            std::cout<<std::endl;
+        }*/
         return NG;
     }
 
@@ -1315,7 +1315,7 @@ void lpg_index::compute_grammar_sfx(
 
 
 
-void lpg_index::locate(const std::string &pattern, std::set<uint64_t> &pos)  const {
+void lpg_index::locate(const std::string &pattern, std::set<lpg_index::size_type> &pos)  const {
         //find primary occ
         auto partitions  = compute_pattern_cuts(pattern);
 //        std::cout<<"cortes:\n";
@@ -1341,7 +1341,7 @@ void lpg_index::locate(const std::string &pattern, std::set<uint64_t> &pos)  con
 
 
 
-void lpg_index::locate_all_cuts(const std::string &pattern, std::set<uint64_t> &pos)  const {
+void lpg_index::locate_all_cuts(const std::string &pattern, std::set<lpg_index::size_type> &pos)  const {
     //find primary occ
 //    auto partitions  = compute_pattern_cuts(pattern);
     uint32_t level = 0;
@@ -1354,14 +1354,14 @@ void lpg_index::locate_all_cuts(const std::string &pattern, std::set<uint64_t> &
             grid_search(range,item + 1,pattern.size(),level,pOcc);
             // find secondary occ
             for (const auto &occ : pOcc) {
-                find_secondary_occ(occ,pos);
+                find_secondary_occ(occ, pos);
             }
         }
     }
 
 }
 
-void lpg_index::locate_split_time(const std::string &pattern, std::set<uint64_t> &pos, uint64_t& p_time, uint64_t& s_time) const {
+void lpg_index::locate_split_time(const std::string &pattern, std::set<lpg_index::size_type> &pos, size_t& p_time, size_t& s_time) const {
 
     auto start = std::chrono::high_resolution_clock::now();
     //find primary occ
@@ -1378,7 +1378,7 @@ void lpg_index::locate_split_time(const std::string &pattern, std::set<uint64_t>
             // find secondary occ
             size_t prev_size = prim_occ.size();
             prim_occ.resize(prev_size + pOcc.size());
-            std::copy(pOcc.begin(),pOcc.end(),prim_occ.begin()+prev_size);
+            std::copy(pOcc.begin(),pOcc.end(),prim_occ.begin()+(std::streamsize)prev_size);
         }
     }
     auto end = std::chrono::high_resolution_clock::now();

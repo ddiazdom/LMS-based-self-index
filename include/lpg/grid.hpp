@@ -7,7 +7,7 @@
 
 
 #include <sdsl/rrr_vector.hpp>
-#include <sdsl/wt_int.hpp>
+#include "../sdsl-files/wt_int.hpp"
 #include <sdsl/construct.hpp>
 #include "macros.hpp"
 #include "utils.hpp"
@@ -174,7 +174,7 @@ protected:
         return xb_sel1(row)-row+1;
     }
 
-    void build_bitvectors(const std::vector<point>& _points, const size_type& n_cols,const size_type& n_rows,const size_type& n_points){
+    void build_bitvectors(const std::vector<point>& _points, const size_type& n_cols, const size_type& n_rows,const size_type& n_points){
 
         std::vector<size_type> card_rows(n_rows, 0);
 //        std::vector<size_type> card_cols(n_cols, 0);
@@ -282,9 +282,8 @@ public:
         compute_rank_select_st();
     }
 
-    size_type serialize(std::ostream &out, sdsl::structure_tree_node *v, std::string name) const {
-
-//        sdsl::structure_tree_node *child = sdsl::structure_tree::add_child(v, name, sdsl::util::class_name(*this));
+    size_type serialize(std::ostream &out, sdsl::structure_tree_node *v, const std::string& name) const {
+        sdsl::structure_tree::add_child(v, name, sdsl::util::class_name(*this));
         size_t written_bytes = 0;
 
         written_bytes += sdsl::serialize(labels,out);
@@ -359,10 +358,8 @@ public:
     void breakdown_space() const {
 
         std::cout<<"level_columns_map,"<<sdsl::size_in_bytes(level_columns_map)<<std::endl;
-        uint i = 0;
-        for (const auto &item : grid_levels) {
+        for(size_t i=0;i<grid_levels.size();i++) {
             std::cout<<"grid_levels["<<i+1<<"],"<<sdsl::size_in_bytes(grid_levels[i])<<std::endl;
-            ++i;
         }
 
     }
@@ -383,8 +380,8 @@ public:
 
 
 
-    size_type serialize(std::ostream &out, sdsl::structure_tree_node *v, std::string name) const {
-//        sdsl::structure_tree_node *child = sdsl::structure_tree::add_child(v, name, sdsl::util::class_name(*this));
+    size_type serialize(std::ostream &out, sdsl::structure_tree_node *v, const std::string& name) const {
+        sdsl::structure_tree::add_child(v, name, sdsl::util::class_name(*this));
         size_t written_bytes = 0;
         written_bytes += sdsl::serialize(level_columns_map,out);
         std::cout<<"written_bytes += sdsl::serialize(level_columns_map,out);"<<std::endl;

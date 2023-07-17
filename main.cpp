@@ -48,9 +48,6 @@ public:
 
 static void parse_app(CLI::App& app, struct arguments& args){
     
-
-	std::cout<<"WWWWWWWWWWWWWWWWWWWWWWWWWWWWWW\n";
-	
 	auto fmt = std::make_shared<MyFormatter>();
 
     fmt->column_width(23);
@@ -103,14 +100,10 @@ static void parse_app(CLI::App& app, struct arguments& args){
     app.require_subcommand(1);
 
     app.footer("By default, lpg_index will compress FILE if -c,-d or -b are not set\n\nReport bugs to <diediaz@dcc.uchile.cl>");
-
-    std::cout<<"AAAAAAAAAAAAAAAAAAAA\n";
 }
 
 int main(int argc, char** argv) {
 
-	std::cout<<"XXXXXXXXXXXXXXXXXXXXXXXx"<<std::endl;
-    
 	arguments args;
 
     CLI::App app("A grammar-based self-index");

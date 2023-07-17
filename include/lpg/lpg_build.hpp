@@ -98,7 +98,7 @@ public:
 
             ivb_t rules_buff(rules_file);
             bvb_t rules_lim_buff(rules_lim_file);
-            int ii = 0;
+            size_t ii = 0;
             for (size_t i = 0; i < r; ++i) {
                 std::cout<<i<<"->";
                 if(is_rules_len[i]){

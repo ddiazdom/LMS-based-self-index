@@ -23,12 +23,12 @@
 #ifndef INCLUDED_SDSL_INT_WAVELET_TREE
 #define INCLUDED_SDSL_INT_WAVELET_TREE
 
-#include "sdsl_concepts.hpp"
-#include "int_vector.hpp"
-#include "rank_support_v.hpp"
-#include "select_support_mcl.hpp"
-#include "wt_helper.hpp"
-#include "util.hpp"
+#include <sdsl/sdsl_concepts.hpp>
+#include <sdsl/int_vector.hpp>
+#include <sdsl/rank_support_v.hpp>
+#include <sdsl/select_support_mcl.hpp>
+#include <sdsl/wt_helper.hpp>
+#include <sdsl/util.hpp>
 #include <set> // for calculating the alphabet size
 #include <map> // for mapping a symbol to its lexicographical index
 #include <algorithm> // for std::swap

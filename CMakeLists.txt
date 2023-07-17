@@ -9,7 +9,7 @@ find_package(LibSDSL REQUIRED)
 add_executable(lpg
         main.cpp
         lib/lpg/lpg_build.cpp
-        third-party/xxHash-dev/xxhash.c include/lpg/utils.hpp include/lpg/macros.hpp)
+        third-party/xxHash-dev/xxhash.c)
 
 target_compile_options(lpg
         PRIVATE
@@ -24,9 +24,7 @@ if(APPLE)
     target_compile_options(lpg PRIVATE -fno-stack-check)
 endif()
 
-target_link_libraries(lpg
-        LINK_PUBLIC
-        pthread ${LIBSDSL_LIBRARIES})
+target_link_libraries(lpg SYSTEM pthread ${LIBSDSL_LIBRARIES})
 
 target_include_directories(lpg
         PRIVATE

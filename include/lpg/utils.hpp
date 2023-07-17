@@ -118,7 +118,7 @@ namespace utils {
         nav_grammar NG;
         std::vector<size_type> right_hand;
 
-        for (auto i = 0; i < rules_lim_buff.size(); ++i) {
+        for (size_t i = 0; i < rules_lim_buff.size(); ++i) {
             right_hand.push_back(rules_buff[i]);
             if(rules_buff[i] == 0) {
                 zero_count++;
@@ -156,7 +156,7 @@ namespace utils {
             size_type rule = breaks_buff[i];
             size_type l = breaks_buff[++i];
             cuts[rule] = std::vector<size_type>(l,0);
-            for (int j = 0; j < l; ++j) {
+            for (size_type j = 0; j < l; ++j) {
                 cuts[rule][j] = breaks_buff[j+i+1];
             }
             i += l + 1;
@@ -265,7 +265,7 @@ namespace utils {
 #endif
 
         std::sort(grammar_sfx.begin(), grammar_sfx.end(),
-                  [&SA_1,&text,&LCP,&rmq](const sfx &lhs, const sfx &rhs) {
+                  [&SA_1,&LCP,&rmq](const sfx &lhs, const sfx &rhs) {
                       if (SA_1[lhs.off] == SA_1[rhs.off]) {
                           return lhs.len < rhs.len;
                       }

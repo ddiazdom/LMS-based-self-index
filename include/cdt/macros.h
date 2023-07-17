@@ -3,7 +3,6 @@
 //
 
 #ifndef LPG_COMPRESSOR_MACROS_HPP
-#define LPG_COMPRESSOR_MACROS_H
 
 #define INT_CEIL(a,b) (a>0? 1+(a-1)/b : 0)
 
