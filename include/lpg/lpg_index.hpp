@@ -56,15 +56,15 @@ public:
 #endif
         }
 
-        utils::lenght_rules lenghts;
+        utils::lenght_rules lengths;
         size_type S;
         utils::nav_grammar NG = build_nav_grammar(p_gram, S);
-        grammar_tree.build(NG, p_gram, text_length, lenghts, S);
+        grammar_tree.build(NG, p_gram, text_length, lengths, S);
         std::vector<utils::sfx> grammar_sfx;
-        const auto &T = grammar_tree.getT();
-        compute_grammar_sfx(NG, p_gram, lenghts, grammar_sfx);
+        //const auto &T = grammar_tree.getT();
+        compute_grammar_sfx(NG, p_gram, lengths, grammar_sfx);
         NG.clear();
-        lenghts.clear();
+        lengths.clear();
 #ifdef DEBUG_INFO
         std::cout << "sort_suffixes[" << grammar_sfx.size() << "]\n";
 #endif
@@ -485,35 +485,38 @@ public:
             pos = str.find(sub,pos+1);
         }
     }
+
     //search for a list of patterns
     void search(std::vector<std::string> &list
 #ifdef CHECK_OCC
             ,const std::string& file
 #endif
-    ) {
+    ) const {
 #ifdef CHECK_OCC
         std::string data;
         utils::readFile(file,data);
         int ii = 0;
 #endif
-        std::cout << "Locate pattern list["<<list.size()<<"]" << std::endl;
-        size_t total_occ = 0,total_time = 0 , total_occ_bt = 0;
+        std::cout << "Locating "<<list.size()<<" patterns "<< std::endl;
+        size_t total_occ = 0,total_time = 0;
+        size_t ii=0;
         for (auto const &pattern : list) {
 #ifdef DEBUG_PRINT
             std::cout << pattern << ":";
 #endif
-//            std::cout<<++ii<<"--"<<pattern<<std::endl;
+            std::cerr<<"  Pattern "<<(++ii)<<": "<<pattern<<std::endl;
             auto start = std::chrono::high_resolution_clock::now();
             std::set<size_type> occ;
             locate(pattern, occ);
             auto end = std::chrono::high_resolution_clock::now();
             auto elapsed = std::chrono::duration_cast<std::chrono::microseconds>(end - start).count();
+            std::cerr<<"    "<<occ.size()<<" occurrences in "<<elapsed<<" microseconds "<<std::endl;
             total_occ += occ.size();
             total_time+=elapsed;
 
-
 #ifdef CHECK_OCC
             //
+            size_t total_occ_bt = 0;
             std::set<size_type> positions;
             bt_search(data,pattern,positions);
             total_occ_bt += positions.size();
@@ -541,33 +544,33 @@ public:
         auto index_size = (double)sdsl::size_in_bytes(*this);
         std::cout << "Elap. time (microsec): " << total_time << std::endl;
         std::cout << "Total occ: " << total_occ << std::endl;
+#ifdef CHECK_OCC
         std::cout << "Real Total occ: " << total_occ_bt << std::endl;
+#endif
         double time_per_occ = (double)total_time/(double)total_occ;
         std::cout << "Time/occ (microsec): " << time_per_occ << std::endl;
         std::cout << "Index size " << sdsl::size_in_bytes(*this) << std::endl;
         std::cout << "Text size " << grammar_tree.get_text_len() << std::endl;
         std::cout << "Bps " << index_size * 8 /text_size << std::endl;
-
-
     }
 
     void search_all_cuts(std::vector<std::string> &list
 #ifdef CHECK_OCC
             ,const std::string& file
 #endif
-    ) {
+    ) const {
 #ifdef CHECK_OCC
         std::string data;
         utils::readFile(file,data);
         int ii = 0;
 #endif
         std::cout << "Locate pattern list["<<list.size()<<"]" << std::endl;
-        size_t total_occ = 0,total_time = 0 , total_occ_bt = 0;
+        size_t total_occ = 0,total_time = 0;
         for (auto const &pattern : list) {
 #ifdef DEBUG_PRINT
             std::cout << pattern << ":";
 #endif
-//            std::cout<<++ii<<"--"<<pattern<<std::endl;
+//          std::cout<<++ii<<"--"<<pattern<<std::endl;
             auto start = std::chrono::high_resolution_clock::now();
             std::set<size_type> occ;
             locate_all_cuts(pattern, occ);
@@ -579,6 +582,7 @@ public:
 
 #ifdef CHECK_OCC
             //
+            size_t total_occ_bt = 0;
             std::set<size_type> positions;
             bt_search(data,pattern,positions);
             total_occ_bt += positions.size();
@@ -597,16 +601,16 @@ public:
                 }
 ////                return;
             }
-
 #endif
-
         }
 
         auto text_size = (double)grammar_tree.get_text_len();
         auto index_size = (double)sdsl::size_in_bytes(*this);
         std::cout << "Elap. time (microsec): " << total_time << std::endl;
         std::cout << "Total occ: " << total_occ << std::endl;
+#ifdef CHECK_OCC
         std::cout << "Real Total occ: " << total_occ_bt << std::endl;
+#endif
         double time_per_occ = (double)total_time/(double)total_occ;
         std::cout << "Time/occ (microsec): " << time_per_occ << std::endl;
         std::cout << "Index size " << sdsl::size_in_bytes(*this) << std::endl;
@@ -620,7 +624,7 @@ public:
 #ifdef CHECK_OCC
     ,const std::string& file
 #endif
-    ) {
+    ) const {
 #ifdef CHECK_OCC
         std::string data;
         utils::readFile(file,data);

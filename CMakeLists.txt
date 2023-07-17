@@ -14,7 +14,7 @@ add_executable(lpg
 target_compile_options(lpg
         PRIVATE
         #-Werror
-        -Wall -Wextra -Wno-ignored-qualifiers -pedantic -Wno-vla-extension -msse4.2 -O3 -funroll-loops -fomit-frame-pointer -ffast-math
+        #-Wall -Wextra -Wno-ignored-qualifiers -pedantic -Wno-vla-extension -Wno-unused-parameter -O3 -funroll-loops -fomit-frame-pointer -ffast-math
         #-O0
         INTERFACE
         -Wshadow)
@@ -24,10 +24,15 @@ if(APPLE)
     target_compile_options(lpg PRIVATE -fno-stack-check)
 endif()
 
+if(NOT CMAKE_HOST_SYSTEM_PROCESSOR MATCHES "arm64")
+    target_compile_options(lpg PUBLIC -msse4.2)
+else()
+    message(STATUS "Disabling SSE4.2 instructions due to conflict with host system processor ${CMAKE_HOST_SYSTEM_PROCESSOR}")
+endif()
+
+
 target_link_libraries(lpg SYSTEM pthread ${LIBSDSL_LIBRARIES})
 
-target_include_directories(lpg
-        PRIVATE
-        ${LIBSDSL_INCLUDE_DIRS}
-        ${CMAKE_SOURCE_DIR}/include)
+target_include_directories(lpg PRIVATE ${LIBSDSL_INCLUDE_DIRS} ${CMAKE_SOURCE_DIR}/include)
+target_include_directories(lpg SYSTEM PRIVATE ${LIBSDSL_INCLUDE_DIRS})
 

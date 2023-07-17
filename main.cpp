@@ -57,46 +57,19 @@ static void parse_app(CLI::App& app, struct arguments& args){
     CLI::App *search = app.add_subcommand("search", "Search for a pattern in the index");
     app.set_help_all_flag("--help-all", "Expand all help");
 
-    app.add_flag("-V,--version",
-                 args.ver, "Print the software version and exit");
+    app.add_flag("-v,--version", args.ver, "Print the software version and exit");
 
-    index->add_option("TEXT",
-                      args.input_file,
-                      "Input text file")->check(CLI::ExistingFile)->required();
-    index->add_option("-o,--output-file",
-                      args.output_file,
-                      "Output file")->type_name("");
-    index->add_option("-t,--threads",
-                      args.n_threads,
-                      "Maximum number of threads")->default_val(1);
-    index->add_option("-f,--hbuff",
-                      args.hbuff_frac,
-                      "Hashing step will use at most INPUT_SIZE*f bytes. O means no limit (def. 0.5)")->
-            check(CLI::Range(0.0,1.0))->
-            default_val(0.5);
-    index->add_option("-T,--tmp",
-                      args.tmp_dir,
-                      "Temporal folder (def. /tmp/lpg_index.xxxx)")->
-            check(CLI::ExistingDirectory)->default_val("/tmp");
+    index->add_option("TEXT", args.input_file, "Input text file")->check(CLI::ExistingFile)->required();
+    index->add_option("-o,--output-file", args.output_file, "Output file")->type_name("");
+    index->add_option("-t,--threads", args.n_threads, "Maximum number of threads")->default_val(1);
+    index->add_option("-f,--hbuff", args.hbuff_frac, "Hashing step will use at most INPUT_SIZE*f bytes. O means no limit (def. 0.5)")-> check(CLI::Range(0.0,1.0))-> default_val(0.5);
+    index->add_option("-T,--tmp", args.tmp_dir, "Temporal folder (def. /tmp/lpg_index.xxxx)")->check(CLI::ExistingDirectory)->default_val("/tmp");
 
-
-    search->add_option("INDEX",
-                       args.input_file,
-                       "Input LPG index file")->check(CLI::ExistingFile)->required();
-
-    search->add_option("-p,--patterns",
-                                     args.patterns,
-                                     "Pattern to search for in the index")->type_name("")->required(true);
-
-    search->add_option("-F,--pattern-list",
-                                  args.patter_list_file,
-                    "File with a pattern list")->type_name("");
-    search->add_option("-t,--threads",
-                       args.n_threads,
-                       "Maximum number of threads")->default_val(1);
-    search->add_option("-o,--output-file",
-                   args.output_file,
-                   "Output file")->type_name("");
+    search->add_option("INDEX", args.input_file, "Input LPG index file")->check(CLI::ExistingFile)->required();
+    search->add_option("-p,--patterns", args.patterns, "Pattern to search for in the index")->type_name("")->required(true);
+    search->add_option("-F,--pattern-list", args.patter_list_file, "File with a pattern list")->type_name("");
+    search->add_option("-t,--threads", args.n_threads, "Maximum number of threads")->default_val(1);
+    search->add_option("-o,--output-file", args.output_file, "Output file")->type_name("");
     app.require_subcommand(1);
 
     app.footer("By default, lpg_index will compress FILE if -c,-d or -b are not set\n\nReport bugs to <diediaz@dcc.uchile.cl>");
@@ -124,8 +97,8 @@ int main(int argc, char** argv) {
         sdsl::store_to_file(g, args.output_file);
 
         generate_random_samples(args.input_file,10,10) ;
-	    generate_random_samples(args.input_file,20,10) ;
-        generate_random_samples(args.input_file,30,10) ;
+        generate_random_samples(args.input_file,20,10) ;
+//        generate_random_samples(args.input_file,30,10) ;
 //        generate_random_samples(args.input_file,40,1000) ;
 //        generate_random_samples(args.input_file,50,1000) ;
 //        generate_random_samples(args.input_file,60,1000) ;
@@ -141,7 +114,7 @@ int main(int argc, char** argv) {
         std::cout<<"Index size:"<<sdsl::size_in_bytes(g)<<std::endl;
         std::cout<<"Index name:"<<args.input_file<<std::endl;
         std::set<std::string> patterns_set;
-        std::vector<std::string> patterns;
+
         if (!args.patter_list_file.empty()){
             std::fstream in(args.patter_list_file,std::ios::in|std::ios::binary);
             if(in.good()){
@@ -151,13 +124,13 @@ int main(int argc, char** argv) {
                 char *buff = new char[len];
                 for (uint32_t i = 0; i < samples ; ++i) {
 		//	std::cout<<i<<" "<<len<<std::endl;
-			in.read(buff,len);
+			        in.read(buff,len);
                     std::string ss;ss.resize(len);
                     std::copy(buff,buff+len,ss.begin());
                     patterns_set.insert(ss);
-                    patterns.push_back(ss);
+                    args.patterns.push_back(ss);
                 }
-                delete buff;
+                delete[] buff;
 
 #ifdef DEBUG_INFO
                 std::cout<<"Patterns to search["<<patterns_set.size()<<"]"<<std::endl;
@@ -181,21 +154,13 @@ int main(int argc, char** argv) {
 //            g.print_prefix_rule(i+1,1000);
 //
 //        }
-
-
-        std::cout<<"Searching for the patterns "<<std::endl;
-
-//        patterns = {"GTAGGTAAAGAGTTCAACCACCTGGAAAAAAGAATAGAGAATTTAAATAAAAAAGTTGATGATGGTTTCCTGGACATTTGGACTTACAATGCCGAACTGT"};
-//        patterns = {"GTAGGTAAAGAGTTCAACCAC"};
-
-	 if(patterns.empty()){
-	            }else{
-
-		            g.search(patterns
+     if(!args.patterns.empty()){
+         std::cout<<"Searching for the patterns "<<std::endl;
+         g.search(args.patterns
 #ifdef CHECK_OCC
 			                    ,file
 #endif
-			            );
+        );
 
 //         g.search_split_time(patterns
 //#ifdef CHECK_OCC
@@ -204,17 +169,15 @@ int main(int argc, char** argv) {
 //         );
 
 
-std::cout<<"search_all_cuts"<<std::endl;
-         g.search_all_cuts(patterns
-#ifdef CHECK_OCC
-                 ,file
-#endif
-         );
-
-
-	        }
-	//g.search(args.patterns);
-        //g.search(args.patter_list_file);
+//std::cout<<"search_all_cuts"<<std::endl;
+//         g.search_all_cuts(args.patterns
+//#ifdef CHECK_OCC
+//                 ,file
+//#endif
+//         );
+    }
+	// g.search(args.patterns);
+    // g.search(args.patter_list_file);
     }
     return 0;
 }

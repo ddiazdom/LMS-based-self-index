@@ -99,8 +99,8 @@ public:
 
         compute_aux_st();
     }
-    size_type serialize(std::ostream &out, sdsl::structure_tree_node *v, std::string name) const{
-        sdsl::structure_tree_node* child = sdsl::structure_tree::add_child(v, name, sdsl::util::class_name(*this));
+    size_type serialize(std::ostream &out, sdsl::structure_tree_node *v, const std::string& name) const{
+        sdsl::structure_tree::add_child(v, name, sdsl::util::class_name(*this));
         size_t written_bytes = 0;
         written_bytes += sdsl::serialize(T,out);
         written_bytes += sdsl::serialize(Z,out);
@@ -135,12 +135,11 @@ public:
 
 
     size_type first_occ_preorder_node(const size_type& preorder)const {
+        assert(!Z[preorder - 1]);
         // preorder has to be a non-terminal leaf
-        if(!Z[preorder - 1]){
-            //check if it is not a first mention
-            size_type _x = X[preorder - rank1_Z(preorder) - 1 ];
-            return select1_Z(F[_x]) + 1;
-        }
+        //check if it is not a first mention
+        size_type _x = X[preorder - rank1_Z(preorder) - 1 ];
+        return select1_Z(F[_x]) + 1;
     }
     size_type first_occ_from_rule(const size_type& _x)const {
         // preorder has to be a non-terminal leaf

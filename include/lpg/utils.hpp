@@ -420,7 +420,7 @@ namespace utils {
             text[i] = if_stream.read(i);
         }
 
-        std::cout<<"TEXT:"<<text.size()<<std::endl;
+        //std::cout<<"TEXT:"<<text.size()<<std::endl;
 //        for (int i = 0; i <if_stream.tot_cells ; ++i) {
 //           std::cout<<(*text)[i];
 //        }
@@ -542,9 +542,9 @@ namespace utils {
         primaryOcc( const primaryOcc& ) = default;
 
         primaryOcc(const size_type& n,const size_type&p, const size_type& o,const size_type& op,const bool& pr = false):
-        node(n),preorder(p),off_node(o),off_pattern(op),run_len(0),fchild_len(0),primary(pr){}
+        node(n),preorder(p),off_pattern(op),off_node(o),run_len(0),fchild_len(0),primary(pr){}
         primaryOcc(const size_type& n,const size_type&p, const size_type& o,const size_type& op,const size_type& r,const size_type& rl,const bool& pr = false):
-        node(n),preorder(p),off_node(o),off_pattern(op),run_len(r),fchild_len(rl),primary(pr){}
+        node(n),preorder(p),off_pattern(op),off_node(o), run_len(r),fchild_len(rl),primary(pr){}
     };
 
 
