@@ -6273,7 +6273,9 @@ class App {
     }
 
     /// Get a display name for an app
-    std::string get_display_name() const { return (!name_.empty()) ? name_ : "[Option Group: " + get_group() + "]"; }
+    std::string get_display_name() const {
+        return (!name_.empty()) ? name_ : ""/*"[Option Group: " + get_group() + "]"*/;
+    }
 
     /// Check the name, case insensitive and underscore insensitive if set
     bool check_name(std::string name_to_check) const {
@@ -7960,7 +7962,7 @@ inline std::string
 Formatter::make_group(std::string group, bool is_positional, std::vector<const Option *> opts) const {
     std::stringstream out;
 
-    out << "\n" << group << ":\n";
+    out <<"\n"<< group << ":\n";
     for(const Option *opt : opts) {
         out << make_option(opt, is_positional);
     }
@@ -8152,10 +8154,11 @@ inline std::string Formatter::make_subcommand(const App *sub) const {
 
 inline std::string Formatter::make_expanded(const App *sub) const {
     std::stringstream out;
-    out << sub->get_display_name() << "\n";
+    out << sub->get_display_name() << "";
 
-    out << make_description(sub);
+    //out << make_description(sub);
     out << make_positionals(sub);
+
     out << make_groups(sub, AppFormatMode::Sub);
     out << make_subcommands(sub, AppFormatMode::Sub);
 
@@ -8164,7 +8167,8 @@ inline std::string Formatter::make_expanded(const App *sub) const {
     tmp = tmp.substr(0, tmp.size() - 1); // Remove the final '\n'
 
     // Indent all but the first line (the name)
-    return detail::find_and_replace(tmp, "\n", "\n  ") + "\n";
+    //return detail::find_and_replace(tmp, "\n", "\n  ") + "\n";
+    return tmp;
 }
 
 inline std::string Formatter::make_option_name(const Option *opt, bool is_positional) const {

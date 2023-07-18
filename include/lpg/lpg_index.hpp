@@ -255,10 +255,184 @@ public:
         return {prev_s_type == S_TYPE, rm_run};
     }
 
+    static void left2right_lms_scan(std::vector<uint32_t>& seq, std::vector<uint32_t>& base_cuts, std::vector<uint32_t>& lvl_cuts,
+                                    size_t& l_offset, size_t& r_offset) {
+
+
+        size_t ps = 0, end_ps = seq.size()-1;
+
+        size_t lms_break;
+
+        //number of left cuts in the previous levels
+        size_t cut_pos = l_offset;
+
+        //always add the rightmost position
+        size_t left_border_breaks=1;
+        base_cuts[cut_pos++] = base_cuts[l_offset];
+
+        if(seq.size()>1) {
+
+            //add idx 1 if seq[0]<seq[i'], i'<=1 being the leftmost position 0 s.t. seq[0]!=seq[i']
+            while (ps < (end_ps - 1) && seq[ps] == seq[ps + 1]) ps++;
+            if (ps < seq.size() && seq[ps] < seq[ps + 1]) {
+                left_border_breaks++;
+                base_cuts[cut_pos++] = base_cuts[l_offset + 1];
+            }
+
+            uint32_t prev_sym = seq[ps];
+            size_t prev_sym_pos = ps;
+
+            ps++;
+            end_ps--;
+            while (ps <= end_ps) {
+
+                if (seq[ps] == seq[ps + 1]) {
+                    ps++;
+                    continue;
+                }
+
+                if ((prev_sym > seq[ps]) && (seq[ps] < seq[ps + 1])) {
+                    lms_break = prev_sym_pos + 2;
+                    base_cuts[cut_pos++] = base_cuts[l_offset + lms_break];
+                    lvl_cuts.push_back(lms_break);
+                }
+
+                prev_sym = seq[ps];
+                prev_sym_pos = ps;
+                ps++;
+            }
+
+            lms_break = prev_sym_pos + 2;
+            bool right_border_break = false;
+            if (prev_sym > seq[ps] && lms_break < seq.size()) {
+                base_cuts[cut_pos++] = base_cuts[l_offset + lms_break];
+                lvl_cuts.push_back(lms_break);
+            }
+        }
+
+        //append the right-border cuts we have gathered in the previous levels
+        for(size_t j=r_offset;j-->0;){
+            base_cuts[cut_pos++] = base_cuts[base_cuts.size()-j-1];
+        }
+        base_cuts.resize(cut_pos);
+
+        /*for(auto const& sym : seq){
+            std::cout<<sym<<" ";
+        }
+        std::cout<<""<<std::endl;
+
+        std::cout<<"base cuts: ";
+        for(unsigned int base_cut : base_cuts){
+            std::cout<<base_cut<<" ";
+        }
+        std::cout<<" "<<std::endl;
+
+        std::cout<<"level cuts: ";
+        for(unsigned int lvl_cut : lvl_cuts){
+            std::cout<<lvl_cut<<" ";
+        }
+        std::cout<<" "<<std::endl;*/
+
+        r_offset++;
+        l_offset+=left_border_breaks;
+    }
 
 public:
 
-    std::pair<std::vector<size_t>, uint8_t> compute_pattern_cuts(const std::string &pattern) const {
+    static std::pair<std::vector<uint32_t>, uint8_t> get_cuts(const std::string& pattern) {
+
+        struct hash_pair {
+            size_t operator()(const std::pair<char *, uint32_t>& key) const {
+                return XXH3_64bits(key.first, key.second);
+            }
+        };
+        struct compare {
+            bool operator()(const std::pair<char *, uint32_t>& a, const std::pair<char *, uint32_t>& b) const {
+                return a.second==b.second && memcmp(a.first, b.first, a.second)==0;
+            }
+        };
+        using map_type = std::unordered_map<std::pair<char *, uint32_t>, uint32_t, hash_pair, compare>;
+
+        std::vector<uint32_t> pat_buff(pattern.size(), 0);
+        for(size_t i=0;i<pattern.size();i++){
+            pat_buff[i] = (size_t)pattern[i];
+        }
+        std::vector<uint32_t> parse(pattern.size(), 0);
+
+        std::vector<uint32_t> base_cuts(pattern.size(), 0);
+        for(size_t i=0;i<pattern.size();i++){
+            base_cuts[i] = i;
+        }
+
+        std::vector<uint32_t> lvl_cuts;
+        lvl_cuts.reserve(pattern.size());
+
+        size_t l_offset=0, r_offset=0, levels=0;
+        while(true){
+
+            left2right_lms_scan(pat_buff, base_cuts, lvl_cuts, l_offset, r_offset);
+
+            if(lvl_cuts.size()>=2) {
+
+                map_type map;
+                for(size_t i=0;i<lvl_cuts.size()-1;i++){
+                    size_t len = lvl_cuts[i+1]-lvl_cuts[i];
+                    auto * tmp = (char *)&pat_buff[lvl_cuts[i]];
+                    map.insert({{tmp, len*sizeof(uint32_t)}, 0});
+                }
+
+                std::vector<std::pair<uint32_t *, uint32_t>> par_set;
+                par_set.reserve(map.size());
+                size_t len;
+                for(auto const& pair : map){
+                    auto* key = (uint32_t *) pair.first.first;
+                    len = pair.first.second/sizeof(uint32_t);
+                    par_set.emplace_back(key, len);
+                }
+
+                std::sort(par_set.begin(), par_set.end(), [&](auto a, auto b){
+                    size_t len = std::min(a.second, b.second);
+                    size_t sym_a, sym_b;
+                    for(size_t i=0;i<len;i++){
+                        sym_a = *(a.first+i);
+                        sym_b = *(b.first+i);
+                        if(sym_a!=sym_b){
+                            return sym_a<sym_b;
+                        }
+                    }
+                    return a.second<b.second;
+                });
+
+                size_t rank=0;
+                for(auto const& par : par_set){
+                    auto * tmp = (char *)par.first;
+                    len = par.second*sizeof(uint32_t);
+                    auto res = map.find({tmp, len});
+                    assert(res!=map.end());
+                    res->second = rank++;
+                }
+
+                size_t pos=0;
+                for(size_t i=0;i<lvl_cuts.size()-1;i++){
+                    len = lvl_cuts[i+1]-lvl_cuts[i];
+                    char * tmp = (char *)&pat_buff[lvl_cuts[i]];
+                    auto res = map.find({tmp, len*sizeof(uint32_t)});
+                    assert(res!=map.end());
+                    parse[pos++]=res->second;
+                }
+                parse.resize(pos);
+                parse.swap(pat_buff);
+                lvl_cuts.clear();
+                levels++;
+            } else {
+                break;
+            }
+        }
+        return {base_cuts, levels};
+    }
+
+    [[nodiscard]] std::pair<std::vector<size_t>, uint8_t> compute_pattern_cuts(const std::string &pattern) const {
+
 
         parsing_data p_data(pattern);
         //hash table to hash the LMS phrases
@@ -269,17 +443,20 @@ public:
                 p_data.tail = false;
             } else {
                 phrase.mask_tail();
+
                 if (p_data.idx > phrase.size()) {
                     ht.insert(phrase.data(), phrase.n_bits(), 0);
                 }
             }
+
             if (p_data.idx > phrase.size()) {
                 p_data.idx -= phrase.size();
                 p_data.new_lms_pos[p_data.n_lms++] = p_data.lms_pos[p_data.idx];
             }else{
-            }
 
+            }
         };
+
         //lambda function to create the LMS parse
         auto parse_task = [&](auto &phrase, bool last) {
             if (p_data.tail) {
@@ -350,7 +527,7 @@ public:
 public:
     typedef size_t size_type;
 
-    bool just_one_zero(std::string &input_file){
+    static bool just_one_zero(std::string &input_file){
         std::string text;
         utils::readFile(input_file,text);
         int zero_count = 0;
@@ -487,7 +664,7 @@ public:
     }
 
     //search for a list of patterns
-    void search(std::vector<std::string> &list
+    void search(std::vector<std::string> &list, bool print_ind_patterns=true
 #ifdef CHECK_OCC
             ,const std::string& file
 #endif
@@ -504,16 +681,24 @@ public:
 #ifdef DEBUG_PRINT
             std::cout << pattern << ":";
 #endif
-            std::cerr<<"  Pattern "<<(++ii)<<": "<<pattern<<std::endl;
             auto start = std::chrono::high_resolution_clock::now();
             std::set<size_type> occ;
             locate(pattern, occ);
             auto end = std::chrono::high_resolution_clock::now();
             auto elapsed = std::chrono::duration_cast<std::chrono::microseconds>(end - start).count();
-            std::cerr<<"    "<<occ.size()<<" occurrences in "<<elapsed<<" microseconds "<<std::endl;
+            if(print_ind_patterns){
+                std::cout<<"  Pattern "<<(++ii)<<": "<<pattern<<std::endl;
+                std::cout<<"    "<<occ.size()<<" occurrences in "<<elapsed<<" microseconds "<<std::endl;
+            }
             total_occ += occ.size();
             total_time+=elapsed;
 
+            std::set<size_type> occ2;
+            locate_all_cuts(pattern, occ2);
+            if(occ2.size()!=occ.size()){
+                std::cout<<pattern<<std::endl;
+                std::cout<<"Son iguales? "<<occ2.size()<<" "<<occ.size()<<std::endl;
+            }
 #ifdef CHECK_OCC
             //
             size_t total_occ_bt = 0;
@@ -535,23 +720,30 @@ public:
                 }
 ////                return;
             }
-
 #endif
-
         }
 
         auto text_size = (double)grammar_tree.get_text_len();
         auto index_size = (double)sdsl::size_in_bytes(*this);
-        std::cout << "Elap. time (microsec): " << total_time << std::endl;
-        std::cout << "Total occ: " << total_occ << std::endl;
+        std::cout <<"Stats for the pattern collection" <<std::endl;
+        std::cout <<"  Total elap. time (microsec): " << total_time << std::endl;
+        std::cout <<"  Total occ: " << total_occ << std::endl;
 #ifdef CHECK_OCC
         std::cout << "Real Total occ: " << total_occ_bt << std::endl;
 #endif
         double time_per_occ = (double)total_time/(double)total_occ;
-        std::cout << "Time/occ (microsec): " << time_per_occ << std::endl;
-        std::cout << "Index size " << sdsl::size_in_bytes(*this) << std::endl;
-        std::cout << "Text size " << grammar_tree.get_text_len() << std::endl;
-        std::cout << "Bps " << index_size * 8 /text_size << std::endl;
+        std::cout <<"  Time/occ (microsec): " << time_per_occ << std::endl;
+    }
+
+    [[nodiscard]] inline size_t text_size() const {
+        return grammar_tree.get_text_len();
+    }
+
+    [[nodiscard]] inline float bps() const {
+        size_t idx_bytes = sdsl::size_in_bytes(*this);
+        size_t txt_len = grammar_tree.get_text_len();
+        float bits_per_symbol = float(idx_bytes * 8) / float(txt_len);
+        return bits_per_symbol;
     }
 
     void search_all_cuts(std::vector<std::string> &list
@@ -616,8 +808,6 @@ public:
         std::cout << "Index size " << sdsl::size_in_bytes(*this) << std::endl;
         std::cout << "Text size " << grammar_tree.get_text_len() << std::endl;
         std::cout << "Bps " << index_size * 8 /text_size << std::endl;
-
-
     }
 
     void search_split_time(std::vector<std::string> &list
@@ -840,7 +1030,7 @@ public:
     }
 
 
-    int cmp_prefix_rule(const size_type &preorder_node, const std::string &str, const uint32_t &i) const {
+    [[nodiscard]] int cmp_prefix_rule(const size_type &preorder_node, const std::string &str, const uint32_t &i) const {
         long ii = i;
         int r = 0;
         bool match = false;
@@ -889,6 +1079,7 @@ public:
         };
         process_suffix_grammar(preorder_node,cmp);
     }
+
     template<typename F>
     int process_suffix_grammar(const size_type &preorder_node, const F & f) const{
 
@@ -916,7 +1107,7 @@ public:
         return 1;
     }
 
-    int cmp_suffix_grammar(const size_type &preorder_node, const std::string &str, const uint32_t &i) const {
+    [[nodiscard]] int cmp_suffix_grammar(const size_type &preorder_node, const std::string &str, const uint32_t &i) const {
 
         uint32_t ii = i, sfx_len = str.size();
         int r = 0;
@@ -984,11 +1175,11 @@ public:
         }
     }
 
-    inline bool is_terminal(const size_type &X) const {
+    [[nodiscard]] inline bool is_terminal(const size_type &X) const {
         return Y[X];
     }
 
-    inline uint8_t get_symbol(const size_type &X) const {
+    [[nodiscard]] inline uint8_t get_symbol(const size_type &X) const {
         return symbols_map[rank_Y(X)];
     }
 
@@ -1001,7 +1192,7 @@ public:
                            grid_query &q) const {
         // search rules range....
         auto cmp_rev_prefix_rule = [&p, &pattern, this](const size_type &rule_id) {
-            // compute node definiton preorder of the rule
+            // compute node definition preorder of the rule
             uint64_t prenode = grammar_tree.first_occ_from_rule(rule_id);
             return cmp_prefix_rule(prenode, pattern, p - 1);
         };
@@ -1161,9 +1352,8 @@ public:
 //        ivb_t rules_buff(G.rules_file);
 
         size_type zero_count = 0;
-        for (size_t i = 0; i < rules_buff.size(); ++i) {
-            if(rules_buff[i] == 0)
-                zero_count++;
+        for (auto && i : rules_buff) {
+            if(i == 0) zero_count++;
         }
 
         if(zero_count != 2){
@@ -1320,26 +1510,49 @@ void lpg_index::compute_grammar_sfx(
 
 
 void lpg_index::locate(const std::string &pattern, std::set<lpg_index::size_type> &pos)  const {
-        //find primary occ
-        auto partitions  = compute_pattern_cuts(pattern);
-//        std::cout<<"cortes:\n";
 
-        uint32_t level = partitions.second;
-        for (const auto &item : partitions.first) {
-//            std::cout<<item<<" ";
-            grid_query range{};
-            //range search
-            if(search_grid_range(pattern.c_str(),pattern.size(),item + 1,level, range)){
-                std::vector<utils::primaryOcc> pOcc;
-                // grid search
-                grid_search(range,item + 1,pattern.size(),level,pOcc);
-                // find secondary occ
-//GTAGGTAAAGAGTTCAACCACCTGGAAAAAAGAATAGAGAATTTAAATAAAAAAGTTGATGATGGTTTCCTGGACATTTGGACTTACAATGCCGAACTGT"
-                for (const auto &occ : pOcc) {
-                    find_secondary_occ(occ,pos);
-                }
+    //get_cuts(pattern);
+    //std::string test="AAGAAAGAAAGAAAGAAAGAAAGAAAGAAAAATACAAGGTTTGAGAGCCC";
+    //for(size_t i=0;i<pattern.size();i++){
+    //    std::cout<<pattern[i]<<" ";
+    //}
+    //std::cout<<""<<std::endl;
+    //std::string test = "GTGGAGGTTC";
+    //auto new_par = get_cuts(pattern);
+    //for(size_t i=0;i<new_par.first.size();i++){
+    //    std::cout<<new_par.first[i]<<" ";
+    //}
+    //std::cout<<""<<std::endl;
+
+    //find primary occ
+    //auto partitions  = compute_pattern_cuts(pattern);
+    auto partitions  = get_cuts(pattern);
+    /*for(size_t i=0;i<partitions.first.size();i++){
+        std::cout<<partitions.first[i]<<" ";
+    }
+    std::cout<<""<<std::endl;*/
+
+    uint32_t level = partitions.second;
+    for (const auto &cut : partitions.first) {
+//        std::cout<<item<<" ";
+        grid_query range{};
+
+        size_t res=0;
+        //range search
+        if(cut>0){
+            res = search_grid_range(pattern.c_str(), pattern.size(), cut ,level, range);
+        }
+
+        if(res){
+            std::vector<utils::primaryOcc> pOcc;
+            // grid search
+            grid_search(range, cut , pattern.size(), level, pOcc);
+            // find secondary occ
+            for (const auto &occ : pOcc) {
+                find_secondary_occ(occ,pos);
             }
         }
+    }
 //        std::cout<<std::endl;
 }
 
