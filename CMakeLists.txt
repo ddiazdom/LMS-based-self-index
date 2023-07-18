@@ -30,6 +30,10 @@ else()
     message(STATUS "Disabling SSE4.2 instructions due to conflict with host system processor ${CMAKE_HOST_SYSTEM_PROCESSOR}")
 endif()
 
+if(UNIX AND NOT APPLE)
+    target_link_libraries(lpg LINK_PUBLIC stdc++fs)
+endif()
+
 
 target_link_libraries(lpg SYSTEM pthread ${LIBSDSL_LIBRARIES})
 

@@ -577,7 +577,6 @@ public:
         //maximum amount of RAM allowed to spend in parallel for the hashing step
         auto hbuff_size = std::max<size_t>(64 * n_threads, size_t(std::ceil(float(n_chars) * hbuff_frac)));
 
-
         std::cout << "Computing the grammar for the self-index" << std::endl;
         auto start = std::chrono::high_resolution_clock::now();
         lpg_build::compute_LPG(input_file, g_file, n_threads, config, hbuff_size, alphabet);
@@ -693,12 +692,12 @@ public:
             total_occ += occ.size();
             total_time+=elapsed;
 
-            std::set<size_type> occ2;
+            /*std::set<size_type> occ2;
             locate_all_cuts(pattern, occ2);
             if(occ2.size()!=occ.size()){
                 std::cout<<pattern<<std::endl;
                 std::cout<<"Son iguales? "<<occ2.size()<<" "<<occ.size()<<std::endl;
-            }
+            }*/
 #ifdef CHECK_OCC
             //
             size_t total_occ_bt = 0;

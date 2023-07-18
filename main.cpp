@@ -11,20 +11,21 @@ void generate_random_samples(const std::string &file, const std::string &o_file,
     utils::readFile(file,data);
     std::fstream out_f(o_file, std::ios::out | std::ios::binary);
 
-    out_f.write((const char*)&len,sizeof (uint32_t));
-    out_f.write((const char*)&samples,sizeof (uint32_t));
     std::srand(time(nullptr));
     uint32_t i = 0;
     std::set<std::string> M;
     while (i < samples){
         size_t pos = std::rand()%data.size();
-        if(pos + len >= data.size()) pos -= len;
-        std::string ss; ss.resize(len);
-        std::copy(data.begin()+pos,data.begin()+pos+len,ss.begin());
-        if(M.find(ss) == M.end()){
-            M.insert(ss);
-            out_f.write(ss.c_str(),len);
-            i++;
+        if(pos + len <= data.size()) {
+            std::string ss;
+            ss.resize(len);
+            std::copy(data.begin()+pos,data.begin()+pos+len,ss.begin());
+            auto res = ss.find('\n');
+            if(M.find(ss) == M.end() && res==std::string::npos){
+                M.insert(ss);
+                out_f<<ss+'\n';
+                i++;
+            }
         }
     }
 }
@@ -128,7 +129,12 @@ int main(int argc, char** argv) {
         if (!args.patter_list_file.empty()){
 
             std::fstream in(args.patter_list_file,std::ios::in|std::ios::binary);
-            if(in.good()){
+
+            std::string line;
+            while (std::getline(in, line)) {
+                args.patterns.push_back(line);
+            }
+            /*if(in.good()){
                 uint32_t len, samples;
                 in.read((char *)&len,sizeof (uint32_t));
                 in.read((char *)&samples,sizeof (uint32_t));
@@ -142,15 +148,7 @@ int main(int argc, char** argv) {
                     args.patterns.push_back(ss);
                 }
                 delete[] buff;
-
-#ifdef DEBUG_INFO
-                std::cout<<"Patterns to search["<<patterns_set.size()<<"]"<<std::endl;
-#endif
-#ifdef DEBUG_PRINT
-                for (const auto &s : patterns_set) std::cout<<s<<std::endl;
-#endif
-
-            }
+            }*/
         }
 #ifdef CHECK_OCC
         std::string file; file.resize(args.input_file.size() - 8);
@@ -167,7 +165,6 @@ int main(int argc, char** argv) {
 //        }
      if(!args.patterns.empty()){
          std::cout<<"Searching for the patterns "<<std::endl;
-         //std::vector<std::string> pat = {"TCCTTTTATTGGTTTACTGTTAATCACTCATGATGAACGTTTTGA\nATAGTAAACGGAAAGTAGGCCGGGCGTGGTGGCTCATGCCTGTGATCCCAGCAT"};
          g.search(args.patterns, args.ind_report
 #ifdef CHECK_OCC
 			                    ,file

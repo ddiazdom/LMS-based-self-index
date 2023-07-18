@@ -35,7 +35,7 @@ make
 ./lpg index tests/sample_file.txt
 ```
 
-The command above will produce the file **sample_file.txt.idx** 
+The command above will produce the file **sample_file.txt.lpg_idx** 
 
 ### Input for the index 
 
