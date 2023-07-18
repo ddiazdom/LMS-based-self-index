@@ -14,7 +14,7 @@ add_executable(lpg
 target_compile_options(lpg
         PRIVATE
         #-Werror
-        #-Wall -Wextra -Wno-ignored-qualifiers -pedantic -Wno-vla-extension -Wno-unused-parameter -O3 -funroll-loops -fomit-frame-pointer -ffast-math
+        -Wall -Wextra -Wno-ignored-qualifiers -pedantic -Wno-vla-extension -Wno-unused-parameter -O3 -funroll-loops -fomit-frame-pointer -ffast-math
         #-O0
         INTERFACE
         -Wshadow)
@@ -35,7 +35,7 @@ if(UNIX AND NOT APPLE)
 endif()
 
 
-target_link_libraries(lpg SYSTEM pthread ${LIBSDSL_LIBRARIES})
+target_link_libraries(lpg LINK_PUBLIC pthread ${LIBSDSL_LIBRARIES})
 
 target_include_directories(lpg PRIVATE ${LIBSDSL_INCLUDE_DIRS} ${CMAKE_SOURCE_DIR}/include)
 target_include_directories(lpg SYSTEM PRIVATE ${LIBSDSL_INCLUDE_DIRS})
