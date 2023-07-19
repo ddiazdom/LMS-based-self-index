@@ -303,7 +303,6 @@ public:
             }
 
             lms_break = prev_sym_pos + 2;
-            bool right_border_break = false;
             if (prev_sym > seq[ps] && lms_break < seq.size()) {
                 base_cuts[cut_pos++] = base_cuts[l_offset + lms_break];
                 lvl_cuts.push_back(lms_break);
@@ -721,9 +720,6 @@ public:
             }
 #endif
         }
-
-        auto text_size = (double)grammar_tree.get_text_len();
-        auto index_size = (double)sdsl::size_in_bytes(*this);
         std::cout <<"Stats for the pattern collection" <<std::endl;
         std::cout <<"  Total elap. time (microsec): " << total_time << std::endl;
         std::cout <<"  Total occ: " << total_occ << std::endl;
