@@ -45,8 +45,9 @@ of the file different from the end.
 
 ## Search for a pattern
 
+Assuming you are in the folder ``build`` inside the repository. You can run a search example as: 
 ```
-./lpg search sample_file.txt.idx -F pattern_list.txt -p "test pattern"
+./lpg search sample_file.txt.lpg_idx -F ../tests/sample_file.rand_pat_100_10
 ```
 
 The ``-F`` flag expects a file with the pattern list (one element per line). Alternatively, you can use ``--p`` to pass a pattern
