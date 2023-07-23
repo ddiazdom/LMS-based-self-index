@@ -165,7 +165,6 @@ public:
         }
 
         void update_lms_pos(){
-
             new_lms_pos.resize(n_lms-1);
             std::reverse(new_lms_pos.begin(), new_lms_pos.end());
             std::swap(new_lms_pos, lms_pos);
@@ -268,15 +267,29 @@ public:
 
         //always add the rightmost position
         size_t left_border_breaks=1;
+        size_t right_border_breaks=1;
         base_cuts[cut_pos++] = base_cuts[l_offset];
 
-        if(seq.size()>1) {
+        size_t last = seq.size()-1;
+        while (ps < last && seq[ps] == seq[ps + 1]) ps++;
 
-            //add idx 1 if seq[0]<seq[i'], i'<=1 being the leftmost position 0 s.t. seq[0]!=seq[i']
-            while (ps < (end_ps - 1) && seq[ps] == seq[ps + 1]) ps++;
-            if (ps < seq.size() && seq[ps] < seq[ps + 1]) {
+        //TODO this is a weird condition that I add only because
+        // there is something wrong in the index
+        if(last > 0 && ps==last){
+            for(size_t i=0;i<seq.size()-1;i++){
+                base_cuts[cut_pos++] = base_cuts[l_offset + i + 1];
+            }
+        } else if (seq.size()>1) {
+
+            //I think this is related to the simplification
+            left_border_breaks++;
+            base_cuts[cut_pos++] = base_cuts[l_offset + 1];
+
+            //TODO : only add it if it is not a break
+            //this is related to the equal-symbol runs
+            if(ps<last && ps>0){
                 left_border_breaks++;
-                base_cuts[cut_pos++] = base_cuts[l_offset + 1];
+                base_cuts[cut_pos++] = base_cuts[l_offset+ps+1];
             }
 
             uint32_t prev_sym = seq[ps];
@@ -304,8 +317,8 @@ public:
 
             lms_break = prev_sym_pos + 2;
             if (prev_sym > seq[ps] && lms_break < seq.size()) {
+                right_border_breaks++;
                 base_cuts[cut_pos++] = base_cuts[l_offset + lms_break];
-                lvl_cuts.push_back(lms_break);
             }
         }
 
@@ -331,8 +344,7 @@ public:
             std::cout<<lvl_cut<<" ";
         }
         std::cout<<" "<<std::endl;*/
-
-        r_offset++;
+        r_offset+=right_border_breaks;
         l_offset+=left_border_breaks;
     }
 
@@ -399,7 +411,7 @@ public:
                             return sym_a<sym_b;
                         }
                     }
-                    return a.second<b.second;
+                    return a.second>b.second;
                 });
 
                 size_t rank=0;
@@ -1522,7 +1534,8 @@ void lpg_index::locate(const std::string &pattern, std::set<lpg_index::size_type
     //find primary occ
     //auto partitions  = compute_pattern_cuts(pattern);
     auto partitions  = get_cuts(pattern);
-    /*for(size_t i=0;i<partitions.first.size();i++){
+    /*std::cout<<"The cuts to try out ";
+    for(size_t i=0;i<partitions.first.size();i++){
         std::cout<<partitions.first[i]<<" ";
     }
     std::cout<<""<<std::endl;*/
@@ -1532,7 +1545,8 @@ void lpg_index::locate(const std::string &pattern, std::set<lpg_index::size_type
 //        std::cout<<item<<" ";
         grid_query range{};
 
-        size_t res=0;
+        bool res = false;
+
         //range search
         if(cut>0){
             res = search_grid_range(pattern.c_str(), pattern.size(), cut ,level, range);
@@ -1557,13 +1571,19 @@ void lpg_index::locate_all_cuts(const std::string &pattern, std::set<lpg_index::
     //find primary occ
 //    auto partitions  = compute_pattern_cuts(pattern);
     uint32_t level = 0;
-    for (uint64_t item = 0; item < pattern.size() - 1; ++item) {
+    for(uint64_t item = 0; item < pattern.size() - 1; ++item) {
         grid_query range{};
         //range search
-        if(search_grid_range(pattern.c_str(),pattern.size(),item + 1,level, range)){
+        if(search_grid_range(pattern.c_str(),pattern.size(), item + 1,level, range)){
             std::vector<utils::primaryOcc> pOcc;
+
             // grid search
-            grid_search(range,item + 1,pattern.size(),level,pOcc);
+            grid_search(range, item + 1,pattern.size(),level,pOcc);
+
+            /*if(!pOcc.empty()){
+                std::cout<<"AllvsAll cut "<<item+1<<" yielded cuts"<<std::endl;
+            }*/
+
             // find secondary occ
             for (const auto &occ : pOcc) {
                 find_secondary_occ(occ, pos);
